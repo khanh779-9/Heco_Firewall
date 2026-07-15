@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,6 +34,35 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
     private CancellationTokenSource? _cts;
     private Task? _poller;
     private bool _disposed;
+
+    // ── Buffer pooling for IP Helper API calls ────────────────────
+    private static readonly ThreadLocal<byte[]> _tableBuffer = new(() => new byte[65536]);
+    private static readonly ThreadLocal<byte[]> _ipv6Buffer = new(() => new byte[65536]);
+
+    // ── PID Resolution Cache (TTL: 2 seconds) ─────────────────────
+    private static readonly ConcurrentDictionary<ushort, (uint Pid, long Timestamp)> _tcpPidCache = new();
+    private static readonly ConcurrentDictionary<ushort, (uint Pid, long Timestamp)> _udpPidCache = new();
+    private const long PidCacheTtlTicks = 2 * TimeSpan.TicksPerSecond; // 2 seconds
+
+    // ── Reusable unmanaged buffer for IP Helper API ──────────────
+    private static IntPtr _sharedApiBuffer = IntPtr.Zero;
+    private static int _sharedApiBufferSize = 0;
+    private static readonly object _apiBufferLock = new();
+
+    private static IntPtr GetSharedApiBuffer(uint requiredSize)
+    {
+        lock (_apiBufferLock)
+        {
+            if (_sharedApiBufferSize < requiredSize)
+            {
+                if (_sharedApiBuffer != IntPtr.Zero)
+                    Marshal.FreeHGlobal(_sharedApiBuffer);
+                _sharedApiBuffer = Marshal.AllocHGlobal((int)requiredSize);
+                _sharedApiBufferSize = (int)requiredSize;
+            }
+            return _sharedApiBuffer;
+        }
+    }
 
     /// <summary>Fired each refresh cycle with the full snapshot.</summary>
     public event EventHandler<IReadOnlyList<ConnectionEntry>>? ConnectionsUpdated;
@@ -140,7 +170,10 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
     {
         var arpEntries = GetArpTable();
         var ipnet6Entries = GetIpnet6Table();
-        var all = new List<ConnectionEntry>();
+        
+        // Reuse lists instead of allocating new ones each cycle
+        var all = _sharedAllList;
+        all.Clear();
 
         if (_useApiFallback)
         {
@@ -155,9 +188,14 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
             // WinDivert sniff captures ALL protocols (TCP, UDP, ICMP, GRE, ESP, etc.)
             // as the primary connection source
             var now = DateTime.UtcNow;
-            var expiredRawKeys = _rawConnections
-                .Where(kvp => (now - kvp.Value.LastSeen).TotalSeconds > 15)
-                .Select(kvp => kvp.Key).ToList();
+            var expiredRawKeys = _sharedExpiredKeysList;
+            expiredRawKeys.Clear();
+            
+            foreach (var kvp in _rawConnections)
+            {
+                if ((now - kvp.Value.LastSeen).TotalSeconds > 15)
+                    expiredRawKeys.Add(kvp.Key);
+            }
             foreach (var key in expiredRawKeys)
                 _rawConnections.TryRemove(key, out _);
 
@@ -168,9 +206,17 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
         all.AddRange(arpEntries);
         all.AddRange(ipnet6Entries);
 
-        var updated = new HashSet<long>(all.Select(c => c.Id));
-        var removed = new List<ConnectionEntry>();
-        var newlyAdded = new List<ConnectionEntry>();
+        // Reuse HashSet and List instead of allocating new
+        var updated = _sharedUpdatedSet;
+        updated.Clear();
+        foreach (var c in all)
+            updated.Add(c.Id);
+
+        var removed = _sharedRemovedList;
+        removed.Clear();
+        
+        var newlyAdded = _sharedNewlyAddedList;
+        newlyAdded.Clear();
 
         lock (_sync)
         {
@@ -212,6 +258,13 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
         // Refresh aggregate protocol statistics
         RefreshStats();
     }
+
+    // ── Shared reusable collections (avoid allocations per Refresh cycle) ────────
+    private readonly List<ConnectionEntry> _sharedAllList = new();
+    private readonly HashSet<long> _sharedUpdatedSet = new();
+    private readonly List<long> _sharedExpiredKeysList = new();
+    private readonly List<ConnectionEntry> _sharedRemovedList = new();
+    private readonly List<ConnectionEntry> _sharedNewlyAddedList = new();
 
     /// <summary>Query aggregate ICMP and IP statistics from the OS.</summary>
     private void RefreshStats()
@@ -261,7 +314,7 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
             (uint)System.Net.Sockets.AddressFamily.InterNetwork, IpHlpApi.TCP_TABLE_OWNER_PID_ALL, 0);
         if (hr != 0 && hr != 122) return result; // ERROR_INSUFFICIENT_BUFFER
 
-        var ptr = Marshal.AllocHGlobal((int)size);
+        var ptr = GetSharedApiBuffer(size);
         try
         {
             hr = IpHlpApi.GetExtendedTcpTable(ptr, ref size, false,
@@ -282,7 +335,7 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
         }
         finally
         {
-            Marshal.FreeHGlobal(ptr);
+            // No FreeHGlobal - buffer is reused
         }
 
         return result;
@@ -298,7 +351,7 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
             (uint)System.Net.Sockets.AddressFamily.InterNetwork, IpHlpApi.UDP_TABLE_OWNER_PID, 0);
         if (hr != 0 && hr != 122) return result;
 
-        var ptr = Marshal.AllocHGlobal((int)size);
+        var ptr = GetSharedApiBuffer(size);
         try
         {
             hr = IpHlpApi.GetExtendedUdpTable(ptr, ref size, false,
@@ -319,7 +372,7 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
         }
         finally
         {
-            Marshal.FreeHGlobal(ptr);
+            // No FreeHGlobal - buffer is reused
         }
 
         return result;
@@ -388,7 +441,7 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
             IpHlpApi.TCP_TABLE_OWNER_PID_ALL, 0);
         if (hr != 0 && hr != 122) return result;
 
-        var ptr = Marshal.AllocHGlobal((int)size);
+        var ptr = GetSharedApiBuffer(size);
         try
         {
             hr = IpHlpApi.GetExtendedTcpTable(ptr, ref size, false,
@@ -450,7 +503,7 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
         }
         finally
         {
-            Marshal.FreeHGlobal(ptr);
+            // No FreeHGlobal - buffer is reused
         }
 
         return result;
@@ -459,12 +512,16 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
     private static unsafe List<ConnectionEntry> GetUdp6Connections()
     {
         var result = new List<ConnectionEntry>();
+        var buffer = _tableBuffer.Value;
 
         uint size = 0;
         var hr = IpHlpApi.GetExtendedUdpTable(IntPtr.Zero, ref size, false,
             23, // AF_INET6
             IpHlpApi.UDP_TABLE_OWNER_PID, 0);
         if (hr != 0 && hr != 122) return result;
+
+        if (size > (uint)buffer.Length)
+            Array.Resize(ref buffer, (int)size);
 
         var ptr = Marshal.AllocHGlobal((int)size);
         try
@@ -519,7 +576,7 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
         }
         finally
         {
-            Marshal.FreeHGlobal(ptr);
+            // No FreeHGlobal - buffer is reused
         }
 
         return result;
@@ -980,6 +1037,28 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
 
     private static unsafe uint FindTcpPid(ushort localPort)
     {
+        var now = DateTime.UtcNow.Ticks;
+        if (_tcpPidCache.TryGetValue(localPort, out var cached) && now - cached.Timestamp < PidCacheTtlTicks)
+            return cached.Pid;
+
+        var pid = FindTcpPidUncached(localPort);
+        _tcpPidCache[localPort] = (pid, now);
+        return pid;
+    }
+
+    private static unsafe uint FindUdpPid(ushort localPort)
+    {
+        var now = DateTime.UtcNow.Ticks;
+        if (_udpPidCache.TryGetValue(localPort, out var cached) && now - cached.Timestamp < PidCacheTtlTicks)
+            return cached.Pid;
+
+        var pid = FindUdpPidUncached(localPort);
+        _udpPidCache[localPort] = (pid, now);
+        return pid;
+    }
+
+    private static unsafe uint FindTcpPidUncached(ushort localPort)
+    {
         uint size = 0;
         var hr = IpHlpApi.GetExtendedTcpTable(IntPtr.Zero, ref size, false,
             (uint)System.Net.Sockets.AddressFamily.InterNetwork, IpHlpApi.TCP_TABLE_OWNER_PID_ALL, 0);
@@ -991,15 +1070,13 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
                 if (IpHlpApi.GetExtendedTcpTable(ptr, ref size, false,
                     (uint)System.Net.Sockets.AddressFamily.InterNetwork, IpHlpApi.TCP_TABLE_OWNER_PID_ALL, 0) == 0)
                 {
-                    var numEntries = Marshal.ReadInt32(ptr);
-                    var rowSize = Marshal.SizeOf<IpHlpApi.MIB_TCPROW_OWNER_PID>();
+                    var numEntries = *(int*)ptr;
+                    var rows = (IpHlpApi.MIB_TCPROW_OWNER_PID*)((byte*)ptr + 4);
                     for (var i = 0; i < numEntries; i++)
                     {
-                        var rowPtr = ptr + 4 + i * rowSize;
-                        var row = Marshal.PtrToStructure<IpHlpApi.MIB_TCPROW_OWNER_PID>(rowPtr);
-                        var port = (ushort)IPAddress.NetworkToHostOrder((short)row.localPort);
+                        var port = (ushort)IPAddress.NetworkToHostOrder((short)rows[i].localPort);
                         if (port == localPort)
-                            return row.owningPid;
+                            return rows[i].owningPid;
                     }
                 }
             }
@@ -1034,7 +1111,7 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
         return 0;
     }
 
-    private static unsafe uint FindUdpPid(ushort localPort)
+    private static unsafe uint FindUdpPidUncached(ushort localPort)
     {
         uint size = 0;
         var hr = IpHlpApi.GetExtendedUdpTable(IntPtr.Zero, ref size, false,
@@ -1047,15 +1124,16 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
                 if (IpHlpApi.GetExtendedUdpTable(ptr, ref size, false,
                     (uint)System.Net.Sockets.AddressFamily.InterNetwork, IpHlpApi.UDP_TABLE_OWNER_PID, 0) == 0)
                 {
-                    var numEntries = Marshal.ReadInt32(ptr);
-                    var rowSize = Marshal.SizeOf<IpHlpApi.MIB_UDPROW_OWNER_PID>();
+                    var numEntries = *(int*)ptr;
+                    var rowPtr = (byte*)ptr + 4;
                     for (var i = 0; i < numEntries; i++)
                     {
-                        var rowPtr = ptr + 4 + i * rowSize;
-                        var row = Marshal.PtrToStructure<IpHlpApi.MIB_UDPROW_OWNER_PID>(rowPtr);
-                        var port = (ushort)IPAddress.NetworkToHostOrder((short)row.localPort);
+                        var portVal = *(uint*)(rowPtr + 20);
+                        var port = (ushort)IPAddress.NetworkToHostOrder((short)portVal);
+                        var owningPid = *(uint*)(rowPtr + 24);
                         if (port == localPort)
-                            return row.owningPid;
+                            return owningPid;
+                        rowPtr += 28;
                     }
                 }
             }

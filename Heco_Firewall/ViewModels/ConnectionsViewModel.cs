@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Heco.Common.Services.Bandwidth;
 using Heco.Common.Services.GeoIp;
 using Heco.Common.Models;
@@ -24,6 +26,9 @@ internal sealed class ConnectionsViewModel : ObservableObject
     private readonly IGeoLookup? _geoLookup;
     private readonly IBandwidthTracker? _bandwidthTracker;
     private readonly object _sync = new();
+    private readonly Queue<ConnectionEntry> _pendingEnrichment = new();
+    private readonly Queue<Action> _uiUpdateQueue = new();
+    private bool _uiUpdateScheduled;
     private bool _isMonitoring;
     private ConnectionEntry? _selectedConnection;
     private string _searchText = string.Empty;
@@ -198,51 +203,97 @@ internal sealed class ConnectionsViewModel : ObservableObject
 
     private void OnConnectionsUpdated(object? sender, IReadOnlyList<ConnectionEntry> entries)
     {
-        // Enrich connections on the background thread before touching UI
+        // Queue all entries for background enrichment
         foreach (var entry in entries)
+            _pendingEnrichment.Enqueue(entry);
+
+        // Process enrichment in background
+        Task.Run(() => ProcessEnrichmentQueue());
+
+        // Schedule batched UI update
+        ScheduleUiUpdate(entries);
+    }
+
+    private void ProcessEnrichmentQueue()
+    {
+        while (_pendingEnrichment.TryDequeue(out var entry))
             EnrichConnection(entry);
+    }
 
-        App.Current?.Dispatcher?.BeginInvoke(new Action(() =>
+    private void ScheduleUiUpdate(IReadOnlyList<ConnectionEntry> entries)
+    {
+        lock (_uiUpdateQueue)
         {
-            lock (_sync)
+            // Store the latest snapshot for UI update
+            _uiUpdateQueue.Enqueue(() =>
             {
-                var incomingIds = new HashSet<long>(entries.Count);
-                foreach (var e in entries)
-                    incomingIds.Add(e.Id);
+                ApplyConnectionsSnapshot(entries);
+            });
 
-                // Remove stale connections
-                for (int i = Connections.Count - 1; i >= 0; i--)
-                {
-                    if (!incomingIds.Contains(Connections[i].Id))
-                        Connections.RemoveAt(i);
-                }
-
-                // Index remaining items
-                var existingById = new Dictionary<long, int>(Connections.Count);
-                for (int i = 0; i < Connections.Count; i++)
-                    existingById[Connections[i].Id] = i;
-
-                // Replace existing items in-place; add new ones
-                foreach (var entry in entries)
-                {
-                    if (existingById.TryGetValue(entry.Id, out var idx))
-                        Connections[idx] = entry;
-                    else
-                        Connections.Add(entry);
-                }
-
-                OnPropertyChanged(nameof(TotalConnections));
-                OnPropertyChanged(nameof(TcpConnections));
-                OnPropertyChanged(nameof(UdpConnections));
-                OnPropertyChanged(nameof(ArpEntries));
-                OnPropertyChanged(nameof(IcmpConnections));
-                OnPropertyChanged(nameof(OtherProtocols));
-                OnPropertyChanged(nameof(EstablishedCount));
-                OnPropertyChanged(nameof(ListeningCount));
-                OnPropertyChanged(nameof(DhcpAdapterCount));
-                ConnectionStatus = $"Monitoring — {entries.Count} active connections";
+            if (!_uiUpdateScheduled)
+            {
+                _uiUpdateScheduled = true;
+                Dispatcher.CurrentDispatcher.BeginInvoke(() => FlushUiUpdates(), DispatcherPriority.Background);
             }
-        }));
+        }
+    }
+
+    private void FlushUiUpdates()
+    {
+        List<Action> actions;
+        lock (_uiUpdateQueue)
+        {
+            _uiUpdateScheduled = false;
+            actions = _uiUpdateQueue.ToList();
+            _uiUpdateQueue.Clear();
+        }
+
+        foreach (var action in actions)
+            action();
+
+        // Single property change notification for all computed properties
+        OnPropertyChanged(nameof(TotalConnections));
+        OnPropertyChanged(nameof(TcpConnections));
+        OnPropertyChanged(nameof(UdpConnections));
+        OnPropertyChanged(nameof(ArpEntries));
+        OnPropertyChanged(nameof(IcmpConnections));
+        OnPropertyChanged(nameof(OtherProtocols));
+        OnPropertyChanged(nameof(EstablishedCount));
+        OnPropertyChanged(nameof(ListeningCount));
+        OnPropertyChanged(nameof(DhcpAdapterCount));
+    }
+
+    private void ApplyConnectionsSnapshot(IReadOnlyList<ConnectionEntry> entries)
+    {
+        lock (_sync)
+        {
+            var incomingIds = new HashSet<long>(entries.Count);
+            foreach (var e in entries)
+                incomingIds.Add(e.Id);
+
+            // Remove stale connections
+            for (int i = Connections.Count - 1; i >= 0; i--)
+            {
+                if (!incomingIds.Contains(Connections[i].Id))
+                    Connections.RemoveAt(i);
+            }
+
+            // Index remaining items
+            var existingById = new Dictionary<long, int>(Connections.Count);
+            for (int i = 0; i < Connections.Count; i++)
+                existingById[Connections[i].Id] = i;
+
+            // Replace existing items in-place; add new ones
+            foreach (var entry in entries)
+            {
+                if (existingById.TryGetValue(entry.Id, out var idx))
+                    Connections[idx] = entry;
+                else
+                    Connections.Add(entry);
+            }
+
+            ConnectionStatus = $"Monitoring — {entries.Count} active connections";
+        }
     }
 
     /// <summary>Enrich a connection with profile + GeoIP + bandwidth data.</summary>

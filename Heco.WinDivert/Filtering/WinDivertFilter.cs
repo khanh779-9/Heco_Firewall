@@ -15,6 +15,33 @@ using static Heco.WinDivert.Native.WinDivertStructs;
 
 namespace Heco.WinDivert.Filtering;
 
+/// <summary>
+/// Thread-safe buffer pool for reusing byte arrays in the filter loop.
+/// </summary>
+internal static class BufferPool
+{
+    private const int BufferSize = 65536;
+    private static readonly ConcurrentQueue<byte[]> _pool = new();
+    private static int _poolCount;
+
+    public static byte[] Rent()
+    {
+        if (_pool.TryDequeue(out var buffer))
+        {
+            Interlocked.Decrement(ref _poolCount);
+            return buffer;
+        }
+        return new byte[BufferSize];
+    }
+
+    public static void Return(byte[] buffer)
+    {
+        if (buffer.Length != BufferSize) return;
+        if (Interlocked.Increment(ref _poolCount) <= 32) // Max 32 buffers in pool
+            _pool.Enqueue(buffer);
+    }
+}
+
 public struct VerdictDecision
 {
     public RuleAction Action { get; set; }
@@ -44,6 +71,31 @@ public sealed class WinDivertFilter : IDisposable
 
     // Fast cache for non-TCP/UDP (ICMP, GRE, ESP, etc.): "Proto:SrcIP:DstIP" -> VerdictDecision
     private readonly ConcurrentDictionary<string, VerdictDecision> _nonTcpVerdictCache = new();
+
+    // ── PID Resolution Cache (TTL: 2 seconds) ────────────────────────
+    private static readonly ConcurrentDictionary<ushort, (uint Pid, long Timestamp)> _tcpPidCache = new();
+    private static readonly ConcurrentDictionary<ushort, (uint Pid, long Timestamp)> _udpPidCache = new();
+    private const long PidCacheTtlTicks = 2 * TimeSpan.TicksPerSecond; // 2 seconds
+
+    // ── Shared unmanaged buffer for PID lookups ────────────────────
+    private static IntPtr _sharedPidBuffer = IntPtr.Zero;
+    private static int _sharedPidBufferSize = 0;
+    private static readonly object _pidBufferLock = new();
+
+    private static IntPtr GetSharedPidBuffer(uint requiredSize)
+    {
+        lock (_pidBufferLock)
+        {
+            if (_sharedPidBufferSize < requiredSize)
+            {
+                if (_sharedPidBuffer != IntPtr.Zero)
+                    Marshal.FreeHGlobal(_sharedPidBuffer);
+                _sharedPidBuffer = Marshal.AllocHGlobal((int)requiredSize);
+                _sharedPidBufferSize = (int)requiredSize;
+            }
+            return _sharedPidBuffer;
+        }
+    }
 
     // Callback to resolve Process ID to executable path: PID -> AppPath
     private readonly Func<uint, string?> _processResolver;
@@ -152,65 +204,72 @@ public sealed class WinDivertFilter : IDisposable
 
     private void RunFilterLoop(CancellationToken token)
     {
-        var buffer = new byte[65536];
+        var buffer = BufferPool.Rent();
         var addr = new WINDIVERT_ADDRESS();
         uint recvLen = 0;
 
-        while (!token.IsCancellationRequested)
+        try
         {
-            nint handle;
-            lock (_handleLock)
+            while (!token.IsCancellationRequested)
             {
-                handle = _filterHandle;
-            }
-            if (handle == IntPtr.Zero || handle == new IntPtr(-1)) break;
-
-            try
-            {
-                if (WinDivertNative.WinDivertRecv(handle, buffer, (uint)buffer.Length, ref recvLen, ref addr))
+                nint handle;
+                lock (_handleLock)
                 {
-                    if (token.IsCancellationRequested) break;
+                    handle = _filterHandle;
+                }
+                if (handle == IntPtr.Zero || handle == new IntPtr(-1)) break;
 
-                    var packet = PacketParser.Parse(buffer, recvLen);
-                    if (packet == null)
+                try
+                {
+                    if (WinDivertNative.WinDivertRecv(handle, buffer, (uint)buffer.Length, ref recvLen, ref addr))
                     {
-                        Reinject(buffer, recvLen, addr, token);
-                        continue;
-                    }
+                        if (token.IsCancellationRequested) break;
 
-                    bool isOutbound = addr.Outbound;
-
-                    if (packet.Protocol == Protocol.TCP)
-                    {
-                        if (!packet.IsTcpSyn)
+                        var packet = PacketParser.Parse(buffer, recvLen);
+                        if (packet == null)
                         {
-                            // Non-SYN TCP (data packets, ACK, FIN, RST) — let through
                             Reinject(buffer, recvLen, addr, token);
                             continue;
                         }
-                        // For outbound SYN: lookup by source port; for inbound SYN: lookup by dest port
-                        ushort lookupPort = isOutbound ? packet.SourcePort : packet.DestinationPort;
-                        uint pid = FindTcpPid(lookupPort);
-                        HandleTcpUdpPacket(buffer, recvLen, addr, packet, pid, !isOutbound, token);
-                    }
-                    else if (packet.Protocol == Protocol.UDP)
-                    {
-                        ushort lookupPort = isOutbound ? packet.SourcePort : packet.DestinationPort;
-                        uint pid = FindUdpPid(lookupPort);
-                        HandleTcpUdpPacket(buffer, recvLen, addr, packet, pid, !isOutbound, token);
-                    }
-                    else
-                    {
-                        // Non-TCP/UDP protocols: ICMP, GRE, ESP, AH, SCTP, etc.
-                        HandleNonTcpUdpPacket(buffer, recvLen, addr, packet, token);
+
+                        bool isOutbound = addr.Outbound;
+
+                        if (packet.Protocol == Protocol.TCP)
+                        {
+                            if (!packet.IsTcpSyn)
+                            {
+                                // Non-SYN TCP (data packets, ACK, FIN, RST) — let through
+                                Reinject(buffer, recvLen, addr, token);
+                                continue;
+                            }
+                            // For outbound SYN: lookup by source port; for inbound SYN: lookup by dest port
+                            ushort lookupPort = isOutbound ? packet.SourcePort : packet.DestinationPort;
+                            uint pid = FindTcpPid(lookupPort);
+                            HandleTcpUdpPacket(buffer, recvLen, addr, packet, pid, !isOutbound, token);
+                        }
+                        else if (packet.Protocol == Protocol.UDP)
+                        {
+                            ushort lookupPort = isOutbound ? packet.SourcePort : packet.DestinationPort;
+                            uint pid = FindUdpPid(lookupPort);
+                            HandleTcpUdpPacket(buffer, recvLen, addr, packet, pid, !isOutbound, token);
+                        }
+                        else
+                        {
+                            // Non-TCP/UDP protocols: ICMP, GRE, ESP, AH, SCTP, etc.
+                            HandleNonTcpUdpPacket(buffer, recvLen, addr, packet, token);
+                        }
                     }
                 }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[WinDivertFilter] Interception error: {ex.Message}");
+                    System.Threading.Thread.Sleep(10);
+                }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[WinDivertFilter] Interception error: {ex.Message}");
-                System.Threading.Thread.Sleep(10);
-            }
+        }
+        finally
+        {
+            BufferPool.Return(buffer);
         }
     }
 
@@ -263,6 +322,7 @@ public sealed class WinDivertFilter : IDisposable
 
             if (decision.Value.Action == RuleAction.Permit)
                 Reinject(buffer, length, addr, token);
+            pending.Dispose();
             return;
         }
 
@@ -274,6 +334,7 @@ public sealed class WinDivertFilter : IDisposable
             {
                 Reinject(pending.PacketData, pending.Length, pending.Address, token);
             }
+            pending.Dispose();
         });
     }
 
@@ -347,13 +408,35 @@ public sealed class WinDivertFilter : IDisposable
 
     private static unsafe uint FindTcpPid(ushort localPort)
     {
+        var now = DateTime.UtcNow.Ticks;
+        if (_tcpPidCache.TryGetValue(localPort, out var cached) && now - cached.Timestamp < PidCacheTtlTicks)
+            return cached.Pid;
+
+        var pid = FindTcpPidUncached(localPort);
+        _tcpPidCache[localPort] = (pid, now);
+        return pid;
+    }
+
+    private static unsafe uint FindUdpPid(ushort localPort)
+    {
+        var now = DateTime.UtcNow.Ticks;
+        if (_udpPidCache.TryGetValue(localPort, out var cached) && now - cached.Timestamp < PidCacheTtlTicks)
+            return cached.Pid;
+
+        var pid = FindUdpPidUncached(localPort);
+        _udpPidCache[localPort] = (pid, now);
+        return pid;
+    }
+
+    private static unsafe uint FindTcpPidUncached(ushort localPort)
+    {
         var pid = FindPidInTcpTableV4(localPort);
         if (pid.HasValue) return pid.Value;
         pid = FindPidInTcpTableV6(localPort);
         return pid.GetValueOrDefault();
     }
 
-    private static unsafe uint FindUdpPid(ushort localPort)
+    private static unsafe uint FindUdpPidUncached(ushort localPort)
     {
         var pid = FindPidInUdpTableV4(localPort);
         if (pid.HasValue) return pid.Value;
@@ -367,7 +450,7 @@ public sealed class WinDivertFilter : IDisposable
         var hr = IPHelpApiNative.GetExtendedTcpTable(IntPtr.Zero, ref size, false, 2, IPHelpApiNative.TCP_TABLE_OWNER_PID_ALL, 0);
         if (hr != 0 && hr != 122 || size == 0) return null;
 
-        var ptr = Marshal.AllocHGlobal((int)size);
+        var ptr = GetSharedPidBuffer(size);
         try
         {
             if (IPHelpApiNative.GetExtendedTcpTable(ptr, ref size, false, 2, IPHelpApiNative.TCP_TABLE_OWNER_PID_ALL, 0) != 0)
@@ -382,7 +465,10 @@ public sealed class WinDivertFilter : IDisposable
                     return rows[i].OwningPid;
             }
         }
-        finally { Marshal.FreeHGlobal(ptr); }
+        finally
+        {
+            // No FreeHGlobal - buffer is reused
+        }
         return null;
     }
 
@@ -392,7 +478,7 @@ public sealed class WinDivertFilter : IDisposable
         var hr = IPHelpApiNative.GetExtendedTcpTable(IntPtr.Zero, ref size, false, 23, IPHelpApiNative.TCP_TABLE_OWNER_PID_ALL, 0);
         if (hr != 0 && hr != 122 || size == 0) return null;
 
-        var ptr = Marshal.AllocHGlobal((int)size);
+        var ptr = GetSharedPidBuffer(size);
         try
         {
             if (IPHelpApiNative.GetExtendedTcpTable(ptr, ref size, false, 23, IPHelpApiNative.TCP_TABLE_OWNER_PID_ALL, 0) != 0)
@@ -407,7 +493,10 @@ public sealed class WinDivertFilter : IDisposable
                     return rows[i].OwningPid;
             }
         }
-        finally { Marshal.FreeHGlobal(ptr); }
+        finally
+        {
+            // No FreeHGlobal - buffer is reused
+        }
         return null;
     }
 
@@ -417,7 +506,7 @@ public sealed class WinDivertFilter : IDisposable
         var hr = IPHelpApiNative.GetExtendedUdpTable(IntPtr.Zero, ref size, false, 2, IPHelpApiNative.UDP_TABLE_OWNER_PID, 0);
         if (hr != 0 && hr != 122 || size == 0) return null;
 
-        var ptr = Marshal.AllocHGlobal((int)size);
+        var ptr = GetSharedPidBuffer(size);
         try
         {
             if (IPHelpApiNative.GetExtendedUdpTable(ptr, ref size, false, 2, IPHelpApiNative.UDP_TABLE_OWNER_PID, 0) != 0)
@@ -432,7 +521,10 @@ public sealed class WinDivertFilter : IDisposable
                     return rows[i].OwningPid;
             }
         }
-        finally { Marshal.FreeHGlobal(ptr); }
+        finally
+        {
+            // No FreeHGlobal - buffer is reused
+        }
         return null;
     }
 
@@ -442,7 +534,7 @@ public sealed class WinDivertFilter : IDisposable
         var hr = IPHelpApiNative.GetExtendedUdpTable(IntPtr.Zero, ref size, false, 23, IPHelpApiNative.UDP_TABLE_OWNER_PID, 0);
         if (hr != 0 && hr != 122 || size == 0) return null;
 
-        var ptr = Marshal.AllocHGlobal((int)size);
+        var ptr = GetSharedPidBuffer(size);
         try
         {
             if (IPHelpApiNative.GetExtendedUdpTable(ptr, ref size, false, 23, IPHelpApiNative.UDP_TABLE_OWNER_PID, 0) != 0)
@@ -457,7 +549,10 @@ public sealed class WinDivertFilter : IDisposable
                     return rows[i].OwningPid;
             }
         }
-        finally { Marshal.FreeHGlobal(ptr); }
+        finally
+        {
+            // No FreeHGlobal - buffer is reused
+        }
         return null;
     }
 
@@ -483,7 +578,7 @@ public sealed class WinDivertFilter : IDisposable
     }
 }
 
-internal sealed class PendingPacket
+internal sealed class PendingPacket : IDisposable
 {
     public byte[] PacketData { get; }
     public uint Length { get; }
@@ -491,10 +586,15 @@ internal sealed class PendingPacket
 
     public PendingPacket(byte[] data, uint length, WINDIVERT_ADDRESS addr)
     {
-        PacketData = new byte[length];
+        PacketData = BufferPool.Rent();
         Array.Copy(data, PacketData, length);
         Length = length;
         Address = addr;
+    }
+
+    public void Dispose()
+    {
+        BufferPool.Return(PacketData);
     }
 }
 
