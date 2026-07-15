@@ -1,0 +1,246 @@
+<Window x:Class="Heco_Firewall.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:Heco_Firewall.Views"
+        xmlns:vm="clr-namespace:Heco_Firewall.ViewModels"
+        Title="Heco Firewall"
+        Width="1024" Height="680"
+        MinWidth="900" MinHeight="580"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="CanResize"
+        StateChanged="OnStateChanged">
+
+    <Window.DataContext>
+        <vm:MainViewModel />
+    </Window.DataContext>
+
+    <Border Background="{StaticResource BrushBgDark}" CornerRadius="8" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- ════════════════════════════════════════ -->
+            <!--  Sidebar                                -->
+            <!-- ════════════════════════════════════════ -->
+            <Border Grid.Column="0" Background="{StaticResource BrushBgMid}" CornerRadius="7,0,0,7">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- App Logo & Brand -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="16,20,16,10">
+                        <Border Width="32" Height="32" CornerRadius="6"
+                                Background="{StaticResource BrushAccent}">
+                            <TextBlock Text="H" FontSize="18" FontWeight="Bold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{StaticResource BrushBgDark}" />
+                        </Border>
+                        <TextBlock Text="Heco Firewall" FontSize="16" FontWeight="Bold"
+                                   Foreground="{StaticResource BrushTextPrimary}"
+                                   VerticalAlignment="Center" Margin="12,0,0,0" />
+                    </StackPanel>
+
+                    <!-- Nav Buttons -->
+                    <StackPanel Grid.Row="1" Margin="0,4,0,0">
+                        <Button x:Name="NavDashboard" Height="40" Style="{StaticResource BtnSidebar}"
+                                ToolTip="Dashboard" Click="NavDashboard_Click">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Viewbox Width="16" Height="16" Margin="10,0,14,0">
+                                    <Path Data="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"
+                                          Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
+                                </Viewbox>
+                                <TextBlock Text="Dashboard" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="NavRules" Height="40" Style="{StaticResource BtnSidebar}"
+                                ToolTip="Rules" Click="NavRules_Click">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Viewbox Width="16" Height="16" Margin="10,0,14,0">
+                                    <Path Data="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm-3 16H7v-2h4v2zm0-4H7v-2h4v2zm0-4H7V8h4v2z"
+                                          Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
+                                </Viewbox>
+                                <TextBlock Text="Rules" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="NavConnections" Height="40" Style="{StaticResource BtnSidebar}"
+                                ToolTip="Connections" Click="NavConnections_Click">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Viewbox Width="16" Height="16" Margin="10,0,14,0">
+                                    <Path Data="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm0 14H4V4h16v12z"
+                                          Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
+                                </Viewbox>
+                                <TextBlock Text="Connections" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="NavProfiles" Height="40" Style="{StaticResource BtnSidebar}"
+                                ToolTip="Profiles" Click="NavProfiles_Click">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Viewbox Width="16" Height="16" Margin="10,0,14,0">
+                                    <Path Data="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                                          Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
+                                </Viewbox>
+                                <TextBlock Text="Profiles" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="NavBlocklists" Height="40" Style="{StaticResource BtnSidebar}"
+                                ToolTip="Blocklists" Click="NavBlocklists_Click">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Viewbox Width="16" Height="16" Margin="10,0,14,0">
+                                    <Path Data="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm-3 6V3.5L15.5 8H11zm2 10h-2v-6h2v6zm-3 0H8v-6h2v6zm6 0h-2v-6h2v6z"
+                                          Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
+                                </Viewbox>
+                                <TextBlock Text="Blocklists" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="NavActivity" Height="40" Style="{StaticResource BtnSidebar}"
+                                ToolTip="Activity Log" Click="NavActivity_Click">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Viewbox Width="16" Height="16" Margin="10,0,14,0">
+                                    <Path Data="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"
+                                          Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
+                                </Viewbox>
+                                <TextBlock Text="Activity Log" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="NavSettings" Height="40" Style="{StaticResource BtnSidebar}"
+                                ToolTip="Settings" Click="NavSettings_Click">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Viewbox Width="16" Height="16" Margin="10,0,14,0">
+                                    <Path Data="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+                                          Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
+                                </Viewbox>
+                                <TextBlock Text="Settings" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Vertical Separator -->
+            <Rectangle Grid.Column="1" Width="1" Fill="{StaticResource BrushBorder}" />
+
+            <!-- ════════════════════════════════════════ -->
+            <!--  Main Content Area                      -->
+            <!-- ════════════════════════════════════════ -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- ── Title Bar ────────────────────── -->
+                <Border Grid.Row="0" Background="{StaticResource BrushBgMid}"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1"
+                        CornerRadius="0,7,0,0" Padding="20,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                            <TextBlock x:Name="PageTitle" Text="Dashboard" FontSize="18"
+                                       FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" />
+                            <!-- [WFP DISABLED] EngineStatus
+                            <TextBlock x:Name="EngineStatus" Text="● Disconnected"
+                                       Foreground="{StaticResource BrushRed}" FontSize="12"
+                                       VerticalAlignment="Center" Margin="16,0,0,0" />
+                            -->
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- [WFP DISABLED] BtnToggleEngine
+                            <CheckBox x:Name="BtnToggleEngine" Style="{StaticResource ToggleSwitchStyle}"
+                                      Content="Firewall Active" IsChecked="{Binding IsEngineOpen, Mode=OneWay}"
+                                      Click="BtnToggleEngine_Click" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            -->
+                            
+                            <!-- Vertical divider -->
+                            <Rectangle Width="1" Height="20" Fill="{StaticResource BrushBorder}" Margin="0,0,12,0"/>
+
+                            <!-- Minimize Window Button -->
+                            <Button Width="36" Height="30" Style="{StaticResource BtnGhost}" 
+                                    ToolTip="Minimize" Click="Minimize_Click" Margin="0,0,2,0">
+                                <Path Data="M0,8 H12" Stroke="{StaticResource BrushTextSecondary}" StrokeThickness="2" 
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Button>
+                            
+                            <!-- Close Window Button -->
+                            <Button Width="36" Height="30" Style="{StaticResource BtnGhost}" 
+                                    ToolTip="Close" Click="Close_Click">
+                                <Button.Resources>
+                                    <SolidColorBrush x:Key="BrushBgHover" Color="#E81123"/>
+                                </Button.Resources>
+                                <Path Data="M2,2 L10,10 M10,2 L2,10" Stroke="{StaticResource BrushRed}" StrokeThickness="2" 
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Button.Triggers>
+                                    <!-- Change stroke to white when hovering since background becomes red -->
+                                    <EventTrigger RoutedEvent="MouseEnter">
+                                        <!-- Note: triggers work but standard setters inside style templates are cleaner. Let's keep it simple. -->
+                                    </EventTrigger>
+                                </Button.Triggers>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- ── Warning Banner ────────────────── -->
+                <Border Grid.Row="1" Background="#FFF5A623" Padding="16,4"
+                        Visibility="{Binding HasWarning, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="{Binding WarningText}" Foreground="#332200" FontSize="12"
+                               TextWrapping="Wrap" />
+                </Border>
+
+                <!-- ── Page Content ──────────────────── -->
+                <Grid Grid.Row="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Loading indicator -->
+                    <ProgressBar Grid.Row="0" IsIndeterminate="True" Height="3"
+                                 Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"
+                                 Foreground="{StaticResource BrushAccent}"
+                                 Background="Transparent" Margin="0,2,0,0" />
+
+                    <Grid Grid.Row="1" Margin="20,14,20,0">
+                        <views:DashboardView x:Name="PageDashboard" Visibility="Visible" />
+                        <views:RulesView x:Name="PageRules" Visibility="Collapsed" />
+                        <views:SettingsView x:Name="PageSettings" Visibility="Collapsed" />
+                        <views:ConnectionsView x:Name="PageConnections" Visibility="Collapsed" />
+                        <views:ProfilesView x:Name="PageProfiles" Visibility="Collapsed" />
+                        <views:BlocklistsView x:Name="PageBlocklists" Visibility="Collapsed" />
+                        <views:ActivityView x:Name="PageActivity" Visibility="Collapsed" />
+                    </Grid>
+                </Grid>
+
+                <!-- ── Status Bar ────────────────────── -->
+                <Border Grid.Row="3" Background="{StaticResource BrushBgMid}"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0"
+                        CornerRadius="0,0,7,0" Padding="20,6" Margin="0,8,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding StatusText}"
+                                   Foreground="{StaticResource BrushTextSecondary}" FontSize="11" />
+                        <TextBlock Grid.Column="1" Text="Heco Firewall v1.0"
+                                   Foreground="{StaticResource BrushTextMuted}" FontSize="11" />
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

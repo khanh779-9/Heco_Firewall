@@ -1,0 +1,196 @@
+<UserControl x:Class="Heco_Firewall.Views.ConnectionsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <UserControl.Triggers>
+        <EventTrigger RoutedEvent="Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.0" To="1.0" Duration="0:0:0.25"/>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </UserControl.Triggers>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Background="{StaticResource BrushBgCard}" BorderBrush="{StaticResource BrushBorder}"
+                BorderThickness="1" CornerRadius="6" Padding="8" Margin="0,0,0,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Button Content="↻ Refresh" Style="{StaticResource BtnSecondary}"
+                            Command="{Binding Connections.RefreshCommand}" Margin="0,0,6,0" />
+                    <Button Content="DNS" Style="{StaticResource BtnSecondary}"
+                            Command="{Binding Connections.DnsCacheCommand}" />
+                </StackPanel>
+                <Grid Grid.Column="2" Width="220">
+                    <TextBox x:Name="SearchBox" Text="{Binding Connections.SearchText, UpdateSourceTrigger=PropertyChanged}"
+                             Height="32"
+                             Tag="Search process, IP, port..."/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Summary bar -->
+        <Border Grid.Row="1" Background="{StaticResource BrushBgCard}" BorderBrush="{StaticResource BrushBorder}"
+                BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Foreground="{StaticResource BrushTextSecondary}" FontSize="11">
+                    <Run Text="{Binding Connections.ConnectionStatus, Mode=OneWay}" />
+                    <Run Text=" ·" />
+                    <Run Text="{Binding Connections.TotalConnections, Mode=OneWay}" />
+                    <Run Text=" total ·" />
+                    <Run Text="{Binding Connections.EstablishedCount, Mode=OneWay}" />
+                    <Run Text=" ESTAB ·" />
+                    <Run Text="{Binding Connections.ListeningCount, Mode=OneWay}" />
+                    <Run Text=" LISTEN ·" />
+                    <Run Text="{Binding Connections.TcpConnections, Mode=OneWay}" />
+                    <Run Text=" TCP ·" />
+                    <Run Text="{Binding Connections.UdpConnections, Mode=OneWay}" />
+                    <Run Text=" UDP ·" />
+                    <Run Text="{Binding Connections.IcmpConnections, Mode=OneWay}" />
+                    <Run Text=" ICMP ·" />
+                    <Run Text="{Binding Connections.ArpEntries, Mode=OneWay}" />
+                    <Run Text=" ARP ·" />
+                    <Run Text="{Binding Connections.OtherProtocols, Mode=OneWay}" />
+                    <Run Text=" Other ·" />
+                    <Run Text="{Binding Connections.DhcpAdapterCount, Mode=OneWay}" />
+                    <Run Text=" DHCP" />
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <!-- DataGrid + DNS Cache -->
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{StaticResource BrushBgCard}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
+                    CornerRadius="8" Padding="0">
+                <Grid SnapsToDevicePixels="True">
+                    <TextBlock Text="No connections detected. Enable firewall to begin monitoring."
+                               Foreground="{StaticResource BrushTextMuted}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               FontSize="13" IsHitTestVisible="False"
+                               Visibility="{Binding Connections.TotalConnections, Converter={StaticResource IsEmpty}}" />
+                    <DataGrid x:Name="ConGrid"
+                              ItemsSource="{Binding Connections.ConnectionsView.View}"
+                              SelectedItem="{Binding Connections.SelectedConnection}"
+                              Background="Transparent" BorderThickness="0"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <DataGrid.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Inspect Process..." Click="InspectProcess_Click" />
+                            <Separator />
+                            <MenuItem Header="Block App Outbound" Click="BlockProcessOutbound_Click" />
+                            <MenuItem Header="Allow App Outbound" Click="AllowProcessOutbound_Click" />
+                        </ContextMenu>
+                    </DataGrid.ContextMenu>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Proto" Binding="{Binding Protocol, Converter={StaticResource ProtocolText}}" Width="Auto" />
+                        <DataGridTemplateColumn Header="Local Socket" Width="Auto">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock VerticalAlignment="Center">
+                                        <Run Text="{Binding LocalAddress, Mode=OneWay}" />:<Run Text="{Binding LocalPort, Mode=OneWay}" />
+                                    </TextBlock>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Remote Socket" Width="Auto">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock VerticalAlignment="Center">
+                                        <Run Text="{Binding RemoteAddress, Mode=OneWay}" />:<Run Text="{Binding RemotePort, Mode=OneWay}" />
+                                    </TextBlock>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="State" Width="Auto">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="TcpState" Converter="{StaticResource TcpStateText}" />
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="MAC" Binding="{Binding LocalMacAddress}" Width="Auto" />
+                        <DataGridTextColumn Header="Process" Binding="{Binding ProcessName}" Width="Auto" />
+                        <DataGridTextColumn Header="PID" Binding="{Binding ProcessId}" Width="Auto" />
+                        <DataGridTextColumn Header="Profile" Binding="{Binding ProfileName}" Width="Auto" />
+                        <DataGridTextColumn Header="Country" Binding="{Binding CountryCode}" Width="Auto" />
+                        <DataGridTextColumn Header="ASN" Binding="{Binding Asn}" Width="Auto" />
+                        <DataGridTextColumn Header="Host" Binding="{Binding RemoteHostName}" Width="Auto" />
+                        <DataGridTextColumn Header="Sent" Width="Auto">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="BytesSent" Converter="{StaticResource ByteFormat}" />
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Recv" Width="Auto">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="BytesReceived" Converter="{StaticResource ByteFormat}" />
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="▲ KB/s" Width="Auto">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="SentKbps" StringFormat="{}{0:F1}" />
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="▼ KB/s" Width="Auto">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="ReceivedKbps" StringFormat="{}{0:F1}" />
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+                </Grid>
+            </Border>
+
+            <!-- DNS Cache Panel -->
+            <Border Grid.Row="1" Background="{StaticResource BrushBgCard}" BorderBrush="{StaticResource BrushBorder}"
+                    BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,8,0,0"
+                    Visibility="{Binding Connections.IsDnsCacheVisible, Converter={StaticResource BoolToVis}}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding Connections.DnsCacheStatus}"
+                                   Foreground="{StaticResource BrushTextSecondary}" FontSize="12"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="2" Content="Close" Command="{Binding Connections.DnsCacheCloseCommand}"
+                                Padding="10,2" FontSize="11" />
+                    </Grid>
+                    <ListView Grid.Row="1" ItemsSource="{Binding Connections.DnsCacheEntries}"
+                              Background="Transparent" BorderThickness="0"
+                              MaxHeight="200" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Domain" Width="250" DisplayMemberBinding="{Binding DomainName}" />
+                                <GridViewColumn Header="Type" Width="60" DisplayMemberBinding="{Binding Type}" />
+                                <GridViewColumn Header="Address" Width="150" DisplayMemberBinding="{Binding Address}" />
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -1,0 +1,85 @@
+<UserControl x:Class="Heco_Firewall.Views.ActivityView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <UserControl.Triggers>
+        <EventTrigger RoutedEvent="Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.0" To="1.0" Duration="0:0:0.25"/>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </UserControl.Triggers>
+
+    <ScrollViewer Margin="0,0,20,0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <TextBlock Text="Activity Log" FontSize="15" FontWeight="SemiBold"
+                        Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,16" />
+
+            <!-- Toolbar -->
+            <Border Background="{StaticResource BrushBgCard}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
+                    CornerRadius="8" Padding="12,8" Margin="0,0,0,8">
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="▶ Start Watching" Style="{StaticResource BtnPrimary}"
+                            Command="{Binding Activity.StartCommand}" Margin="0,0,6,0" />
+                    <Button Content="■ Stop" Style="{StaticResource BtnDanger}"
+                            Command="{Binding Activity.StopCommand}" Margin="0,0,6,0" />
+                    <Button Content="✕ Clear" Style="{StaticResource BtnSecondary}"
+                            Command="{Binding Activity.ClearCommand}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Status bar -->
+            <Border Background="{StaticResource BrushBgCard}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
+                    CornerRadius="6" Padding="12,8" Margin="0,0,0,8">
+                <TextBlock Text="{Binding Activity.StatusText}" Foreground="{StaticResource BrushTextSecondary}" FontSize="11" />
+            </Border>
+
+            <!-- Block Events DataGrid -->
+            <TextBlock Text="Blocked Connections (Event 5157)" FontSize="13" FontWeight="SemiBold"
+                        Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,8" />
+            <Grid Margin="0,0,0,12">
+                <Border x:Name="TableMask" Background="White" CornerRadius="8" />
+                <Border Background="{StaticResource BrushBgCard}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
+                        CornerRadius="8" Padding="0">
+                    <Border.OpacityMask>
+                        <VisualBrush Visual="{Binding ElementName=TableMask}"/>
+                    </Border.OpacityMask>
+                    <Grid SnapsToDevicePixels="True">
+                        <TextBlock Text="No blocked events recorded."
+                                   Foreground="{StaticResource BrushTextMuted}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   FontSize="13" IsHitTestVisible="False"
+                                   Visibility="{Binding Activity.BlockEventCount, Converter={StaticResource IsEmpty}}" />
+                        <DataGrid ItemsSource="{Binding Activity.BlockEvents}"
+                                  SelectedItem="{Binding Activity.SelectedBlockEvent}"
+                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                  Background="Transparent" BorderThickness="0"
+                                  RowHeight="32" AlternatingRowBackground="{StaticResource BrushBgLight}"
+                                  MaxHeight="400"
+                                  MaxWidth="{Binding ViewportWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}}"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                  ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Time" Width="Auto">
+                                <DataGridTextColumn.Binding>
+                                    <Binding Path="Timestamp" StringFormat="{}{0:yyyy-MM-dd HH:mm:ss}" />
+                                </DataGridTextColumn.Binding>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Protocol" Binding="{Binding Protocol}" Width="Auto" />
+                            <DataGridTextColumn Header="Source" Binding="{Binding SourceAddress}" Width="Auto" />
+                            <DataGridTextColumn Header="Port" Binding="{Binding SourcePort}" Width="Auto" />
+                            <DataGridTextColumn Header="Dest" Binding="{Binding DestAddress}" Width="Auto" />
+                            <DataGridTextColumn Header="Port" Binding="{Binding DestPort}" Width="Auto" />
+                            <DataGridTextColumn Header="Direction" Binding="{Binding Direction}" Width="Auto" />
+                            <DataGridTextColumn Header="Process" Binding="{Binding ApplicationPath}" Width="Auto" />
+                            <DataGridTextColumn Header="PID" Binding="{Binding ProcessId}" Width="Auto" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

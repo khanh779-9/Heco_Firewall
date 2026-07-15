@@ -1,0 +1,224 @@
+using System;
+using System.ComponentModel;
+
+namespace Heco.Common.Services.Settings;
+
+/// <summary>
+///   Manages application and profile settings with YAML persistence.
+///   Auto-saves when any property changes.
+/// </summary>
+public interface ISettingsService
+{
+    /// <summary>Application-wide settings (UI, engine, notifications, blocklists).</summary>
+    SettingsApplication AppSettings { get; }
+
+    /// <summary>Per-profile settings collection (fingerprints, rules, overrides).</summary>
+    SettingsProfilesCollection ProfileSettings { get; }
+
+    /// <summary>Load settings from disk. Called once at startup.</summary>
+    void Load();
+
+    /// <summary>Save all settings to disk immediately.</summary>
+    void Save();
+}
+
+/// <summary>
+///   Application-wide settings. All mutable properties auto-save on change.
+/// </summary>
+public sealed class SettingsApplication : SettingsBase
+{
+    private bool _startWithWindows;
+    private bool _minimizeToTray = true;
+    private bool _showNotifications = true;
+    private int _refreshInterval = 2000;
+    private int _connectionCacheSize = 1024;
+    private string _language = "en";
+    private bool _autoApplyRules;
+
+    public bool StartWithWindows
+    {
+        get => _startWithWindows;
+        set => SetProperty(ref _startWithWindows, value);
+    }
+
+    public bool MinimizeToTray
+    {
+        get => _minimizeToTray;
+        set => SetProperty(ref _minimizeToTray, value);
+    }
+
+    public bool ShowNotifications
+    {
+        get => _showNotifications;
+        set => SetProperty(ref _showNotifications, value);
+    }
+
+    public int RefreshInterval
+    {
+        get => _refreshInterval;
+        set => SetProperty(ref _refreshInterval, value);
+    }
+
+    public int ConnectionCacheSize
+    {
+        get => _connectionCacheSize;
+        set => SetProperty(ref _connectionCacheSize, value);
+    }
+
+    public string Language
+    {
+        get => _language;
+        set => SetProperty(ref _language, value);
+    }
+
+    public bool AutoApplyRules
+    {
+        get => _autoApplyRules;
+        set => SetProperty(ref _autoApplyRules, value);
+    }
+
+    private bool _interactiveMode = true;
+    public bool InteractiveMode
+    {
+        get => _interactiveMode;
+        set => SetProperty(ref _interactiveMode, value);
+    }
+
+    private string _geoIpDatabasePath = "Data\\GeoIP\\";
+
+    public string GeoIpDatabasePath
+    {
+        get => _geoIpDatabasePath;
+        set => SetProperty(ref _geoIpDatabasePath, value);
+    }
+
+    private bool _secureDnsEnabled = true;
+    public bool SecureDnsEnabled
+    {
+        get => _secureDnsEnabled;
+        set => SetProperty(ref _secureDnsEnabled, value);
+    }
+
+    private string _dnsOverHttpsProvider = "https://cloudflare-dns.com/dns-query";
+    public string DnsOverHttpsProvider
+    {
+        get => _dnsOverHttpsProvider;
+        set => SetProperty(ref _dnsOverHttpsProvider, value);
+    }
+
+    private bool _enableSelfDefense;
+    public bool EnableSelfDefense
+    {
+        get => _enableSelfDefense;
+        set => SetProperty(ref _enableSelfDefense, value);
+    }
+
+    private bool _firewallActive;
+    public bool FirewallActive
+    {
+        get => _firewallActive;
+        set => SetProperty(ref _firewallActive, value);
+    }
+
+    private int _selfDefenseLevel = 2; // Standard
+    public int SelfDefenseLevel
+    {
+        get => _selfDefenseLevel;
+        set => SetProperty(ref _selfDefenseLevel, value);
+    }
+}
+
+/// <summary>
+///   Base class for settings models that auto-save on property change.
+/// </summary>
+public abstract class SettingsBase : INotifyPropertyChanged
+{
+    /// <summary>Fired when any property changes — used to trigger auto-save.</summary>
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>External callback invoked after a property changes (set by SettingsService).</summary>
+    public Action? OnPropertyChangedCallback { get; set; }
+
+    protected void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        OnPropertyChangedCallback?.Invoke();
+    }
+
+    protected bool SetProperty<T>(ref T field, T value, [System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
+    {
+        if (System.Collections.Generic.EqualityComparer<T>.Default.Equals(field, value))
+            return false;
+        field = value;
+        OnPropertyChanged(propertyName!);
+        return true;
+    }
+}
+
+/// <summary>
+///   Collection of per-profile settings, keyed by profile name.
+/// </summary>
+public sealed class SettingsProfilesCollection
+{
+    public System.Collections.Generic.List<SettingsProfile> Profiles { get; set; } = new();
+}
+
+/// <summary>
+///   Settings for a single profile.
+/// </summary>
+public sealed class SettingsProfile
+{
+    public string Name { get; set; } = string.Empty;
+    public bool IsAutoGenerated { get; set; }
+    public System.Collections.Generic.List<ProfileFingerprint> Fingerprints { get; set; } = new();
+    public NetworkActionSettings? ActionOverride { get; set; }
+    public BlocklistsSettings? Blocklists { get; set; }
+}
+
+/// <summary>
+///   A fingerprint used to match processes to a profile.
+/// </summary>
+public sealed class ProfileFingerprint
+{
+    public FingerprintType Type { get; set; } = FingerprintType.ProcessName;
+    public MatchOperator Operator { get; set; } = MatchOperator.Equals;
+    public string Value { get; set; } = string.Empty;
+}
+
+public enum FingerprintType
+{
+    FullPath,
+    ProcessName,
+    CommandLine,
+    WindowsService,
+    WindowsStore
+}
+
+public enum MatchOperator
+{
+    Equals,
+    StartsWith,
+    Contains,
+    Wildcard,
+    Regex
+}
+
+/// <summary>
+///   Nullable network action settings for profile-level override chain.
+/// </summary>
+public sealed class NetworkActionSettings
+{
+    public bool? AllowInbound { get; set; }
+    public bool? AllowOutbound { get; set; }
+    public bool? BlockInbound { get; set; }
+    public bool? BlockOutbound { get; set; }
+}
+
+/// <summary>
+///   Blocklist configuration per profile.
+/// </summary>
+public sealed class BlocklistsSettings
+{
+    public bool EnableDomainBlocklists { get; set; } = true;
+    public bool EnableIpBlocklists { get; set; } = true;
+}

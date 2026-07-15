@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <PropertyGroup>
+    <!--
+      Force VisualStudioVersion to 17.0 for WDK compatibility.
+      WDK 10.0.26100 ships Microsoft.DriverKit.Build.Tasks.17.0.dll but
+      VS 18.x looks for 18.0.dll. Overriding here makes the build system
+      load the correct assembly.
+
+      Only applies to this project directory (Heco.Protection.Driver).
+    -->
+    <VisualStudioVersion>17.0</VisualStudioVersion>
+  </PropertyGroup>
+</Project>

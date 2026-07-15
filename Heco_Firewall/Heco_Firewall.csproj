@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>Heco_Firewall</RootNamespace>
+    <AssemblyName>Heco_Firewall</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <LangVersion>12</LangVersion>
+    <Nullable>enable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>1591;0067</NoWarn>
+    <Platforms>AnyCPU;x86</Platforms>
+    <ApplicationIcon>Copilot_20260714_223228.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\Heco.Protection.Driver\build\Release\x64\HecoProtect.sys" Link="Drivers\x64\HecoProtect.sys">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Heco.Protection.Driver\build\Release\Win32\HecoProtect.sys" Link="Drivers\x86\HecoProtect.sys">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Copilot_20260714_223228.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Data\Blocklists\BuiltIn\DNS_DOMAINS.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Data\Blocklists\BuiltIn\DNS_IP.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Data\Blocklists\Offline\DnsBypassoffline.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Data\DriverFiles\AUTHORS">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Data\IPData\AUTHORS">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Data\GeoIP\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Heco.Common\Heco.Common.csproj" />
+    <ProjectReference Include="..\Heco.Surveillance\Heco.Surveillance.csproj" />
+    <ProjectReference Include="..\Heco.WinDivert\Heco.WinDivert.csproj" />
+  </ItemGroup>
+</Project>

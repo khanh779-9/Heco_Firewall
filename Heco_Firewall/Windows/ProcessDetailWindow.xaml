@@ -1,0 +1,113 @@
+<Window x:Class="Heco_Firewall.Windows.ProcessDetailWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Process Inspector" 
+        Width="480" Height="360"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        MouseDown="Window_MouseDown">
+
+    <Window.Triggers>
+        <EventTrigger RoutedEvent="Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.0" To="1.0" Duration="0:0:0.2"/>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Window.Triggers>
+
+    <Border Background="{StaticResource BrushBgMid}" CornerRadius="8" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Title & Close -->
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" Grid.Column="0">
+                    <TextBlock Text="🔍 Process Inspector" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" />
+                </StackPanel>
+                <Button Grid.Column="1" Content="✕" FontSize="12" Style="{StaticResource BtnGhost}" 
+                        Width="28" Height="28" Click="Close_Click"/>
+            </Grid>
+
+            <!-- Details -->
+            <ScrollViewer Grid.Row="1" Margin="0,16,0,12" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Process Name:" Foreground="{StaticResource BrushTextSecondary}" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="TxtName" Grid.Column="1" Foreground="{StaticResource BrushTextPrimary}" TextWrapping="Wrap"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Process ID (PID):" Foreground="{StaticResource BrushTextSecondary}" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="TxtPid" Grid.Column="1" Foreground="{StaticResource BrushTextPrimary}"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Executable Path:" Foreground="{StaticResource BrushTextSecondary}" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="TxtPath" Grid.Column="1" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" FontSize="11.5"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Digital Signature:" Foreground="{StaticResource BrushTextSecondary}" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="TxtSignature" Grid.Column="1" Foreground="{StaticResource BrushBlue}" TextWrapping="Wrap" FontSize="11.5"/>
+                    </Grid>
+
+                    <Separator Margin="0,4,0,10" Background="{StaticResource BrushBorder}"/>
+
+                    <!-- Realtime resource stats -->
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="CPU Usage:" Foreground="{StaticResource BrushTextSecondary}" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="TxtCpu" Grid.Column="1" Foreground="{StaticResource BrushOrange}"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Memory Usage:" Foreground="{StaticResource BrushTextSecondary}" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="TxtMemory" Grid.Column="1" Foreground="{StaticResource BrushGreen}"/>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Actions -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Allow Outbound" Style="{StaticResource BtnPrimary}" Click="Allow_Click" Margin="0,0,8,0"/>
+                <Button Content="Block Outbound" Style="{StaticResource BtnDanger}" Click="Block_Click" Margin="0,0,8,0"/>
+                <Button Content="Close" Style="{StaticResource BtnSecondary}" Click="Close_Click"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

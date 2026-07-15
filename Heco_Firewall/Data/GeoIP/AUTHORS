@@ -1,0 +1,11 @@
+This directory contains GeoLite2 databases from MaxMind.
+
+GeoLite2-City.mmdb — IP geolocation (country, city, latitude/longitude)
+GeoLite2-ASN.mmdb   — Autonomous System Number lookup
+
+These databases are provided by MaxMind under the Creative Commons
+Attribution-ShareAlike 4.0 International (CC BY-SA 4.0) license.
+
+Download from: https://dev.maxmind.com/geoip/geolite2-free-geolocation-data
+
+Alternatively, run:  powershell -File "tools\Download-GeoIP.ps1"

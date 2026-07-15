@@ -1,0 +1,31 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Win32" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Heco_Firewall/Heco_Firewall.csproj">
+    <Platform Solution="*|Win32" Project="x86" />
+    <Platform Solution="*|x86" Project="x86" />
+  </Project>
+  <Project Path="Heco.Core/Heco.Core.csproj">
+    <Platform Solution="*|x86" Project="x86" />
+    <Platform Solution="Release|Win32" Project="x86" />
+  </Project>
+  <Project Path="Heco.Common/Heco.Common.csproj">
+    <Platform Solution="*|x86" Project="x86" />
+    <Platform Solution="Release|Win32" Project="x86" />
+  </Project>
+  <Project Path="Heco.WinDivert/Heco.WinDivert.csproj">
+    <Platform Solution="*|x86" Project="x86" />
+    <Platform Solution="Release|Win32" Project="x86" />
+  </Project>
+  <Project Path="Heco.Surveillance/Heco.Surveillance.csproj">
+    <Platform Solution="*|x86" Project="x86" />
+    <Platform Solution="Release|Win32" Project="x86" />
+  </Project>
+  <Project Path="Heco.Protection.Driver/HecoProtect.vcxproj" Id="7a8b9c0d-1e2f-3a4b-5c6d-7e8f9a0b1c2d">
+    <Deploy Solution="*|x64" />
+    <Deploy Solution="Debug|x86" />
+  </Project>
+</Solution>
