@@ -6,7 +6,7 @@ namespace Heco.Common.Models;
 /// </summary>
 public sealed class ProtocolStats
 {
-    // ── ICMP ─────────────────────────────────────────────────────
+    //  ICMP ─
 
     /// <summary>Total incoming ICMP messages.</summary>
     public uint IcmpInMsgs { get; set; }
@@ -25,7 +25,7 @@ public sealed class ProtocolStats
     /// <summary>Destination unreachable messages sent.</summary>
     public uint IcmpDestUnreachSent { get; set; }
 
-    // ── IP ───────────────────────────────────────────────────────
+    //  IP ─
 
     /// <summary>Total incoming IP datagrams received.</summary>
     public uint IpInReceives { get; set; }

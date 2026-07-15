@@ -26,6 +26,7 @@ internal sealed class ConnectionsViewModel : ObservableObject
     private readonly IGeoLookup? _geoLookup;
     private readonly IBandwidthTracker? _bandwidthTracker;
     private readonly object _sync = new();
+    private readonly Dispatcher _uiDispatcher;
     private readonly Queue<ConnectionEntry> _pendingEnrichment = new();
     private readonly Queue<Action> _uiUpdateQueue = new();
     private bool _uiUpdateScheduled;
@@ -37,6 +38,7 @@ internal sealed class ConnectionsViewModel : ObservableObject
 
     public ConnectionsViewModel(IProfileManager? profileManager = null, IGeoLookup? geoLookup = null, IBandwidthTracker? bandwidthTracker = null)
     {
+        _uiDispatcher = Dispatcher.CurrentDispatcher;
         _monitor = new ConnectionMonitor();
         _profileManager = profileManager;
         _geoLookup = geoLookup;
@@ -54,17 +56,17 @@ internal sealed class ConnectionsViewModel : ObservableObject
         DnsCacheCloseCommand = new RelayCommand(_ => IsDnsCacheVisible = false);
     }
 
-    // ── Collections ──────────────────────────────────────────────
+    //  Collections ─
 
     public ObservableCollection<ConnectionEntry> Connections { get; } = new();
     public CollectionViewSource ConnectionsView { get; }
 
-    // ── Exposed for VerdictEngine integration ────────────────────
+    //  Exposed for VerdictEngine integration 
 
     /// <summary>Expose the underlying monitor so MainViewModel can subscribe to ConnectionAdded for real-time verdict evaluation.</summary>
     public ConnectionMonitor ConnectionMonitor => _monitor;
 
-    // ── Properties ───────────────────────────────────────────────
+    //  Properties 
 
     public bool IsMonitoring
     {
@@ -107,7 +109,7 @@ internal sealed class ConnectionsViewModel : ObservableObject
         set => SetProperty(ref _refreshInterval, value);
     }
 
-    // ── DNS Cache ────────────────────────────────────────────────
+    //  DNS Cache ─
 
     public ObservableCollection<DnsCacheEntry> DnsCacheEntries { get; } = new();
     private bool _isDnsCacheVisible;
@@ -142,7 +144,7 @@ internal sealed class ConnectionsViewModel : ObservableObject
         }
     }
 
-    // ── DHCP Info ────────────────────────────────────────────────
+    //  DHCP Info ─
 
     public int DhcpAdapterCount
     {
@@ -157,7 +159,7 @@ internal sealed class ConnectionsViewModel : ObservableObject
         }
     }
 
-    // ── Stats ────────────────────────────────────────────────────
+    //  Stats 
 
     public int TotalConnections => Connections.Count;
     public int TcpConnections => Connections.Count(c => c.Protocol == NetworkProtocol.TCP);
@@ -168,7 +170,7 @@ internal sealed class ConnectionsViewModel : ObservableObject
     public int EstablishedCount => Connections.Count(c => c.TcpState == TcpState.Established);
     public int ListeningCount => Connections.Count(c => c.TcpState == TcpState.Listen);
 
-    // ── Commands ─────────────────────────────────────────────────
+    //  Commands 
 
     public ICommand StartCommand { get; }
     public ICommand StopCommand { get; }
@@ -176,7 +178,7 @@ internal sealed class ConnectionsViewModel : ObservableObject
     public ICommand DnsCacheCommand { get; }
     public ICommand DnsCacheCloseCommand { get; }
 
-    // ── Monitoring ───────────────────────────────────────────────
+    //  Monitoring 
 
     public void StartMonitoring()
     {
@@ -233,7 +235,7 @@ internal sealed class ConnectionsViewModel : ObservableObject
             if (!_uiUpdateScheduled)
             {
                 _uiUpdateScheduled = true;
-                Dispatcher.CurrentDispatcher.BeginInvoke(() => FlushUiUpdates(), DispatcherPriority.Background);
+                _uiDispatcher.BeginInvoke(() => FlushUiUpdates(), DispatcherPriority.Background);
             }
         }
     }

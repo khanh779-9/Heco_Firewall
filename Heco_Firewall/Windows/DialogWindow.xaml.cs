@@ -140,7 +140,7 @@ public partial class DialogWindow : Window
         Close();
     }
 
-    // ── Static helpers ──
+    //  Static helpers 
 
     public static DialogBoxResult Show(string title, string message,
         DialogIcon icon = DialogIcon.None,

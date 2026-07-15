@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Eventing.Reader;
 using System.Linq;
+using System.Runtime.Versioning;
 using System.Threading;
 using Heco.Common.Services.Monitoring;
 using Heco.Common.Services.Process;
@@ -14,6 +15,7 @@ namespace Heco.Common.Services.Monitoring;
 ///   Watches Windows Security Event Log 5157 (connection blocked) and
 ///   DNS client events. Uses EventLogWatcher for Event 5157 and Event 3008.
 /// </summary>
+[SupportedOSPlatform("windows")]
 public sealed class EventWatcher : IEventWatcher, IDisposable
 {
     private const int MaxBlockEvents = 5000;
@@ -124,7 +126,7 @@ public sealed class EventWatcher : IEventWatcher, IDisposable
         BlockEventCaptured?.Invoke(this, info);
     }
 
-    // ── Event handling ──────────────────────────────────────────
+    //  Event handling ─
 
     private void OnEventRecordWritten(object? sender, EventRecordWrittenEventArgs e)
     {

@@ -76,17 +76,17 @@
                         <ControlTemplate TargetType="Thumb">
                             <Grid x:Name="Grid">
                                 <Rectangle HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="Auto" Height="Auto" Fill="Transparent" />
-                                <Border x:Name="Rectangle1" CornerRadius="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="Auto" Height="Auto"
-                                        Background="{StaticResource BrushBorderLight}" Opacity="0.35" Margin="0.5,0"/>
+                                <Border x:Name="Rectangle1" CornerRadius="4" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="Auto" Height="Auto"
+                                        Background="{StaticResource BrushTextTertiary}" Opacity="0.5" Margin="1,0"/>
                             </Grid>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="true">
                                     <Setter TargetName="Rectangle1" Property="Background" Value="{StaticResource BrushAccent}" />
-                                    <Setter TargetName="Rectangle1" Property="Opacity" Value="0.6" />
+                                    <Setter TargetName="Rectangle1" Property="Opacity" Value="0.7" />
                                 </Trigger>
                                 <Trigger Property="IsDragging" Value="true">
                                     <Setter TargetName="Rectangle1" Property="Background" Value="{StaticResource BrushAccent}" />
-                                    <Setter TargetName="Rectangle1" Property="Opacity" Value="0.8" />
+                                    <Setter TargetName="Rectangle1" Property="Opacity" Value="0.9" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -97,13 +97,16 @@
             <Style TargetType="ScrollBar">
                 <Setter Property="Stylus.IsPressAndHoldEnabled" Value="false"/>
                 <Setter Property="Stylus.IsFlicksEnabled" Value="false"/>
-                <Setter Property="Width" Value="3"/>
-                <Setter Property="Height" Value="3"/>
+                <Setter Property="Width" Value="5"/>
+                <Setter Property="MinWidth" Value="5"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="VerticalContentAlignment" Value="Stretch"/>
                 <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="ScrollBar">
                             <Grid x:Name="Bg" SnapsToDevicePixels="true" Background="Transparent">
+                                <Border x:Name="TrackBorder" Background="{StaticResource BrushBgSurface}" CornerRadius="4" Margin="1,0" Opacity="0.3"/>
                                 <Track x:Name="PART_Track" IsDirectionReversed="true" IsEnabled="{TemplateBinding IsEnabled}">
                                     <Track.DecreaseRepeatButton>
                                         <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="false" />
@@ -116,22 +119,20 @@
                                     </Track.Thumb>
                                 </Track>
                             </Grid>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Bg" Property="Background" Value="Transparent" />
-                                </Trigger>
-                            </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>
                 <Style.Triggers>
                     <Trigger Property="Orientation" Value="Horizontal">
-                        <Setter Property="Width" Value="3"/>
-                        <Setter Property="Height" Value="3"/>
+                        <Setter Property="Width" Value="Auto"/>
+                        <Setter Property="Height" Value="5"/>
+                        <Setter Property="MinHeight" Value="5"/>
+                        <Setter Property="VerticalAlignment" Value="Bottom"/>
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ScrollBar">
                                     <Grid x:Name="Bg" SnapsToDevicePixels="true" Background="Transparent">
+                                        <Border x:Name="TrackBorder" Background="{StaticResource BrushBgSurface}" CornerRadius="4" Margin="0,1" Opacity="0.3"/>
                                         <Track x:Name="PART_Track" IsEnabled="{TemplateBinding IsEnabled}">
                                             <Track.DecreaseRepeatButton>
                                                 <RepeatButton Command="ScrollBar.PageLeftCommand" Opacity="0" Focusable="false" />
@@ -140,35 +141,10 @@
                                                 <RepeatButton Command="ScrollBar.PageRightCommand" Opacity="0" Focusable="false" />
                                             </Track.IncreaseRepeatButton>
                                             <Track.Thumb>
-                                                <Thumb>
-                                                    <Thumb.Template>
-                                                        <ControlTemplate TargetType="Thumb">
-                                                            <Grid x:Name="Grid">
-                                                                <Rectangle HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="Auto" Height="Auto" Fill="Transparent" />
-                                                                <Border x:Name="Rectangle1" CornerRadius="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="Auto" Height="Auto"
-                                                                        Background="{StaticResource BrushBorderLight}" Opacity="0.35" Margin="0,0.5"/>
-                                                            </Grid>
-                                                            <ControlTemplate.Triggers>
-                                                                <Trigger Property="IsMouseOver" Value="true">
-                                                                    <Setter TargetName="Rectangle1" Property="Background" Value="{StaticResource BrushAccent}" />
-                                                                    <Setter TargetName="Rectangle1" Property="Opacity" Value="0.6" />
-                                                                </Trigger>
-                                                                <Trigger Property="IsDragging" Value="true">
-                                                                    <Setter TargetName="Rectangle1" Property="Background" Value="{StaticResource BrushAccent}" />
-                                                                    <Setter TargetName="Rectangle1" Property="Opacity" Value="0.8" />
-                                                                </Trigger>
-                                                            </ControlTemplate.Triggers>
-                                                        </ControlTemplate>
-                                                    </Thumb.Template>
-                                                </Thumb>
+                                                <Thumb Style="{StaticResource ScrollThumbs}" />
                                             </Track.Thumb>
                                         </Track>
                                     </Grid>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="Bg" Property="Background" Value="Transparent" />
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
                                 </ControlTemplate>
                             </Setter.Value>
                         </Setter>

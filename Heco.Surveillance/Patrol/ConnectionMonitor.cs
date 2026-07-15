@@ -27,7 +27,10 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
 {
     private readonly ConcurrentDictionary<long, ConnectionEntry> _connections = new();
     private readonly ConcurrentDictionary<long, ConnectionEntry> _rawConnections = new();
-    private volatile nint _winDivertSniffHandle = IntPtr.Zero;
+
+    //  WinDivert handles 
+    private volatile nint _winDivertNetHandle = IntPtr.Zero;   // LAYER_NETWORK → non-TCP/UDP sniff
+    private volatile nint _winDivertFlowHandle = IntPtr.Zero;  // LAYER_FLOW → TCP/UDP + PID events
     private readonly object _sniffHandleLock = new();
     private readonly object _sync = new();
     private volatile bool _useApiFallback;
@@ -35,16 +38,16 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
     private Task? _poller;
     private bool _disposed;
 
-    // ── Buffer pooling for IP Helper API calls ────────────────────
+    //  Buffer pooling for IP Helper API calls 
     private static readonly ThreadLocal<byte[]> _tableBuffer = new(() => new byte[65536]);
     private static readonly ThreadLocal<byte[]> _ipv6Buffer = new(() => new byte[65536]);
 
-    // ── PID Resolution Cache (TTL: 2 seconds) ─────────────────────
+    //  PID Resolution Cache (TTL: 2 seconds) ─
     private static readonly ConcurrentDictionary<ushort, (uint Pid, long Timestamp)> _tcpPidCache = new();
     private static readonly ConcurrentDictionary<ushort, (uint Pid, long Timestamp)> _udpPidCache = new();
     private const long PidCacheTtlTicks = 2 * TimeSpan.TicksPerSecond; // 2 seconds
 
-    // ── Reusable unmanaged buffer for IP Helper API ──────────────
+    //  Reusable unmanaged buffer for IP Helper API ─
     private static IntPtr _sharedApiBuffer = IntPtr.Zero;
     private static int _sharedApiBufferSize = 0;
     private static readonly object _apiBufferLock = new();
@@ -101,31 +104,58 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
         _useApiFallback = false;
         var token = _cts.Token;
 
-        // Start sniffing ALL network traffic via WinDivert (passive sniff, no blocking)
+        //  WinDivert handles 
         try
         {
-            _winDivertSniffHandle = WinDivertNative.WinDivertOpen(
+            // 1. FLOW layer — event-driven TCP/UDP tracking (provides ProcessId)
+            _winDivertFlowHandle = WinDivertNative.WinDivertOpen(
                 "true",
-                (int)WinDivertLayer.Network,
-
+                (int)WinDivertLayer.Flow,
                 priority: 0,
                 flags: (ulong)WinDivertFlag.Sniff);
-            if (_winDivertSniffHandle != IntPtr.Zero && _winDivertSniffHandle != new IntPtr(-1))
+
+            if (_winDivertFlowHandle != IntPtr.Zero && _winDivertFlowHandle != new IntPtr(-1))
             {
-                Task.Run(() => RunWinDivertSniffLoop(token), token);
+                Task.Run(() => RunFlowSniffLoop(token), token);
             }
             else
             {
-                _useApiFallback = true;
-                System.Diagnostics.Debug.WriteLine("[ConnectionMonitor] WinDivert sniff handle invalid — falling back to IP Helper API");
+                System.Diagnostics.Debug.WriteLine("[ConnectionMonitor] WinDivert FLOW handle invalid");
+            }
+
+            // 2. NETWORK layer — sniff non-TCP/UDP protocols (ICMP, GRE, ESP, …)
+            _winDivertNetHandle = WinDivertNative.WinDivertOpen(
+                "true",
+                (int)WinDivertLayer.Network,
+                priority: 0,
+                flags: (ulong)WinDivertFlag.Sniff);
+
+            if (_winDivertNetHandle != IntPtr.Zero && _winDivertNetHandle != new IntPtr(-1))
+            {
+                Task.Run(() => RunNetworkSniffLoop(token), token);
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("[ConnectionMonitor] WinDivert NETWORK handle invalid");
             }
         }
         catch (Exception ex)
         {
             _useApiFallback = true;
-            System.Diagnostics.Debug.WriteLine($"[ConnectionMonitor] WinDivert sniff failed to start: {ex.Message} — falling back to IP Helper API");
+            System.Diagnostics.Debug.WriteLine($"[ConnectionMonitor] WinDivert failed: {ex.Message}");
         }
 
+        // If neither handle opened, fall back entirely to IP Helper
+        bool flowOk = _winDivertFlowHandle != IntPtr.Zero && _winDivertFlowHandle != new IntPtr(-1);
+        bool netOk  = _winDivertNetHandle  != IntPtr.Zero && _winDivertNetHandle  != new IntPtr(-1);
+        if (!flowOk && !netOk)
+            _useApiFallback = true;
+
+        //  Bootstrap: load already-established TCP/UDP from IP Helper 
+        if (!_useApiFallback)
+            BootstrapExistingConnections();
+
+        //  Poller (slowed: ARP/IPNET backup + stale cleanup) ─
         _poller = Task.Run(async () =>
         {
             while (!token.IsCancellationRequested)
@@ -154,117 +184,26 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
 
         lock (_sniffHandleLock)
         {
-            var handle = _winDivertSniffHandle;
-            if (handle != IntPtr.Zero && handle != new IntPtr(-1))
+            // Close NETWORK handle
+            var net = _winDivertNetHandle;
+            if (net != IntPtr.Zero && net != new IntPtr(-1))
             {
-                _winDivertSniffHandle = IntPtr.Zero;
-                try { WinDivertNative.WinDivertClose(handle); }
+                _winDivertNetHandle = IntPtr.Zero;
+                try { WinDivertNative.WinDivertClose(net); }
+                catch { }
+            }
+
+            // Close FLOW handle
+            var flow = _winDivertFlowHandle;
+            if (flow != IntPtr.Zero && flow != new IntPtr(-1))
+            {
+                _winDivertFlowHandle = IntPtr.Zero;
+                try { WinDivertNative.WinDivertClose(flow); }
                 catch { }
             }
         }
         _rawConnections.Clear();
     }
-
-    /// <summary>Refresh the connection table and fire events.</summary>
-    private void Refresh()
-    {
-        var arpEntries = GetArpTable();
-        var ipnet6Entries = GetIpnet6Table();
-        
-        // Reuse lists instead of allocating new ones each cycle
-        var all = _sharedAllList;
-        all.Clear();
-
-        if (_useApiFallback)
-        {
-            // WinDivert unavailable — fall back to IP Helper API for TCP/UDP
-            all.AddRange(GetTcpConnections());
-            all.AddRange(GetUdpConnections());
-            all.AddRange(GetTcp6Connections());
-            all.AddRange(GetUdp6Connections());
-        }
-        else
-        {
-            // WinDivert sniff captures ALL protocols (TCP, UDP, ICMP, GRE, ESP, etc.)
-            // as the primary connection source
-            var now = DateTime.UtcNow;
-            var expiredRawKeys = _sharedExpiredKeysList;
-            expiredRawKeys.Clear();
-            
-            foreach (var kvp in _rawConnections)
-            {
-                if ((now - kvp.Value.LastSeen).TotalSeconds > 15)
-                    expiredRawKeys.Add(kvp.Key);
-            }
-            foreach (var key in expiredRawKeys)
-                _rawConnections.TryRemove(key, out _);
-
-            all.AddRange(_rawConnections.Values);
-        }
-
-        // Add ARP + IPNET cache entries (no lifecycle tracking — snapshot only)
-        all.AddRange(arpEntries);
-        all.AddRange(ipnet6Entries);
-
-        // Reuse HashSet and List instead of allocating new
-        var updated = _sharedUpdatedSet;
-        updated.Clear();
-        foreach (var c in all)
-            updated.Add(c.Id);
-
-        var removed = _sharedRemovedList;
-        removed.Clear();
-        
-        var newlyAdded = _sharedNewlyAddedList;
-        newlyAdded.Clear();
-
-        lock (_sync)
-        {
-            // Detect removed
-            foreach (var kvp in _connections)
-            {
-                if (!updated.Contains(kvp.Key))
-                    removed.Add(kvp.Value);
-            }
-
-            foreach (var r in removed)
-                _connections.TryRemove(r.Id, out _);
-
-            // Add or update
-            foreach (var c in all)
-            {
-                if (_connections.TryGetValue(c.Id, out var existing))
-                {
-                    existing.LastSeen = DateTime.UtcNow;
-                    existing.TcpState = c.TcpState;
-                }
-                else
-                {
-                    if (_connections.TryAdd(c.Id, c))
-                        newlyAdded.Add(c);
-                }
-            }
-        }
-
-        // Fire events outside lock
-        foreach (var r in removed)
-            ConnectionRemoved?.Invoke(this, r);
-
-        foreach (var c in newlyAdded)
-            ConnectionAdded?.Invoke(this, c);
-
-        ConnectionsUpdated?.Invoke(this, all);
-
-        // Refresh aggregate protocol statistics
-        RefreshStats();
-    }
-
-    // ── Shared reusable collections (avoid allocations per Refresh cycle) ────────
-    private readonly List<ConnectionEntry> _sharedAllList = new();
-    private readonly HashSet<long> _sharedUpdatedSet = new();
-    private readonly List<long> _sharedExpiredKeysList = new();
-    private readonly List<ConnectionEntry> _sharedRemovedList = new();
-    private readonly List<ConnectionEntry> _sharedNewlyAddedList = new();
 
     /// <summary>Query aggregate ICMP and IP statistics from the OS.</summary>
     private void RefreshStats()
@@ -582,7 +521,7 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
         return result;
     }
 
-    // ── ARP Cache ──────────────────────────────────────────────────
+    //  ARP Cache 
 
     /// <summary>Enumerate the ARP cache (IP→MAC mappings via GetIpNetTable).</summary>
     private static List<ConnectionEntry> GetArpTable()
@@ -673,7 +612,7 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
         return string.Join(":", addr.Take(len).Select(b => b.ToString("X2")));
     }
 
-    // ── IPNET (IPv6 Neighbor Cache) ───────────────────────────────
+    //  IPNET (IPv6 Neighbor Cache) 
 
     /// <summary>Enumerate the IPv6 neighbor discovery cache via GetIpNetTable2.</summary>
     private static List<ConnectionEntry> GetIpnet6Table()
@@ -768,7 +707,7 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
         }
     }
 
-    // ── DNS Cache ──────────────────────────────────────────────────
+    //  DNS Cache 
 
     /// <summary>Query the Windows DNS client cache.</summary>
     public static List<DnsCacheEntry> GetDnsCache()
@@ -811,7 +750,7 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
         return result;
     }
 
-    // ── DHCP Info ──────────────────────────────────────────────────
+    //  DHCP Info 
 
     /// <summary>Query adapter DHCP configuration via GetAdaptersAddresses.</summary>
     public static List<DhcpLeaseInfo> GetDhcpInfo()
@@ -1033,7 +972,7 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
         }
     }
 
-    // ── WinDivert PID Resolution (port → PID lookup) ──────────────
+    //  WinDivert PID Resolution (port → PID lookup) ─
 
     private static unsafe uint FindTcpPid(ushort localPort)
     {
@@ -1168,7 +1107,9 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
         return 0;
     }
 
-    private void RunWinDivertSniffLoop(CancellationToken token)
+    //  NETWORK layer sniff ─
+
+    private void RunNetworkSniffLoop(CancellationToken token)
     {
         var buffer = new byte[65536];
         var addr = new WINDIVERT_ADDRESS();
@@ -1179,7 +1120,7 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
             nint handle;
             lock (_sniffHandleLock)
             {
-                handle = _winDivertSniffHandle;
+                handle = _winDivertNetHandle;
             }
             if (handle == IntPtr.Zero || handle == new IntPtr(-1))
             {
@@ -1280,6 +1221,332 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
             }
         }
     }
+
+    //  FLOW layer sniff (event-driven TCP/UDP with PID) 
+
+    /// <summary>
+    ///   Receives flow-ESTABLISHED/DELETED events from the WinDivert FLOW layer.
+    ///   Each event includes ProcessId, addresses, ports, and protocol directly
+    ///   in the WINDIVERT_ADDRESS — no expensive port→PID lookup needed.
+    /// </summary>
+    private void RunFlowSniffLoop(CancellationToken token)
+    {
+        var buffer = new byte[4096];          // FLOW events have minimal packet data
+        var addr = new WINDIVERT_ADDRESS();
+        uint recvLen = 0;
+
+        while (!token.IsCancellationRequested)
+        {
+            nint handle;
+            lock (_sniffHandleLock) { handle = _winDivertFlowHandle; }
+            if (handle == IntPtr.Zero || handle == new IntPtr(-1))
+            {
+                _useApiFallback = true;
+                break;
+            }
+
+            try
+            {
+                if (WinDivertNative.WinDivertRecv(handle, buffer, (uint)buffer.Length,
+                        ref recvLen, ref addr))
+                {
+                    if (token.IsCancellationRequested) break;
+                    if (addr.Layer != (byte)WinDivertLayer.Flow) continue;
+
+                    if (addr.Event == (byte)WinDivertEvent.FlowEstablished)
+                        HandleFlowEstablished(addr);
+                    else if (addr.Event == (byte)WinDivertEvent.FlowDeleted)
+                        HandleFlowDeleted(addr);
+                }
+                else
+                {
+                    Thread.Sleep(10);
+                }
+            }
+            catch
+            {
+                Thread.Sleep(10);
+            }
+        }
+    }
+
+    private void HandleFlowEstablished(WINDIVERT_ADDRESS addr)
+    {
+        var protocol = addr.Flow_Protocol;
+        if (protocol != Protocol.TCP && protocol != Protocol.UDP) return;
+
+        //  Resolve addresses 
+        IPAddress localIp, remoteIp;
+        long id;
+        if (addr.IPv6)
+        {
+            localIp  = ParseFlowAddressV6(addr, isLocal: true);
+            remoteIp = ParseFlowAddressV6(addr, isLocal: false);
+            id = HashConnectionV6(
+                localIp.GetAddressBytes(),  addr.Flow_LocalPort,
+                remoteIp.GetAddressBytes(), addr.Flow_RemotePort,
+                (byte)protocol);
+        }
+        else
+        {
+            localIp  = new IPAddress(BitConverter.GetBytes(addr.Flow_LocalAddr0));
+            remoteIp = new IPAddress(BitConverter.GetBytes(addr.Flow_RemoteAddr0));
+            id = HashConnection(
+                addr.Flow_LocalAddr0, addr.Flow_LocalPort,
+                addr.Flow_RemoteAddr0, addr.Flow_RemotePort,
+                (byte)protocol);
+        }
+
+        uint pid = addr.Flow_ProcessId;
+        ResolveProcessInfo(pid, out var name, out var path);
+
+        var entry = new ConnectionEntry
+        {
+            Id = id & 0x7FFFFFFFFFFFFFFF,
+            Protocol = (NetworkProtocol)(byte)protocol,
+            LocalAddress  = localIp,
+            LocalPort     = addr.Flow_LocalPort,
+            RemoteAddress = remoteIp,
+            RemotePort    = addr.Flow_RemotePort,
+            TcpState      = TcpState.Established,
+            ProcessId     = pid,
+            ProcessName   = name,
+            ProcessPath   = path,
+            IsInbound     = !addr.Outbound,
+            FirstSeen     = DateTime.UtcNow,
+            LastSeen      = DateTime.UtcNow,
+        };
+
+        if (_connections.TryAdd(entry.Id, entry))
+        {
+            ConnectionAdded?.Invoke(this, entry);
+            var snapshot = new List<ConnectionEntry>(_connections.Count + _rawConnections.Count);
+            snapshot.AddRange(_connections.Values);
+            snapshot.AddRange(_rawConnections.Values);
+            ConnectionsUpdated?.Invoke(this, snapshot);
+        }
+    }
+
+    private void HandleFlowDeleted(WINDIVERT_ADDRESS addr)
+    {
+        var protocol = addr.Flow_Protocol;
+        if (protocol != Protocol.TCP && protocol != Protocol.UDP) return;
+
+        long id;
+        if (addr.IPv6)
+        {
+            var localBytes = new byte[16];
+            BitConverter.GetBytes(addr.Flow_LocalAddr0).CopyTo(localBytes, 0);
+            BitConverter.GetBytes(addr.Flow_LocalAddr1).CopyTo(localBytes, 4);
+            BitConverter.GetBytes(addr.Flow_LocalAddr2).CopyTo(localBytes, 8);
+            BitConverter.GetBytes(addr.Flow_LocalAddr3).CopyTo(localBytes, 12);
+            var remoteBytes = new byte[16];
+            BitConverter.GetBytes(addr.Flow_RemoteAddr0).CopyTo(remoteBytes, 0);
+            BitConverter.GetBytes(addr.Flow_RemoteAddr1).CopyTo(remoteBytes, 4);
+            BitConverter.GetBytes(addr.Flow_RemoteAddr2).CopyTo(remoteBytes, 8);
+            BitConverter.GetBytes(addr.Flow_RemoteAddr3).CopyTo(remoteBytes, 12);
+            id = HashConnectionV6(localBytes, addr.Flow_LocalPort,
+                                  remoteBytes, addr.Flow_RemotePort,
+                                  (byte)protocol);
+        }
+        else
+        {
+            id = HashConnection(addr.Flow_LocalAddr0, addr.Flow_LocalPort,
+                               addr.Flow_RemoteAddr0, addr.Flow_RemotePort,
+                               (byte)protocol);
+        }
+        id &= 0x7FFFFFFFFFFFFFFF;
+
+        if (_connections.TryRemove(id, out var removed))
+        {
+            ConnectionRemoved?.Invoke(this, removed);
+            var snapshot = new List<ConnectionEntry>(_connections.Count + _rawConnections.Count);
+            snapshot.AddRange(_connections.Values);
+            snapshot.AddRange(_rawConnections.Values);
+            ConnectionsUpdated?.Invoke(this, snapshot);
+        }
+    }
+
+    //  Address helpers 
+
+    private static IPAddress ParseFlowAddressV6(WINDIVERT_ADDRESS addr, bool isLocal)
+    {
+        var bytes = new byte[16];
+        if (isLocal)
+        {
+            BitConverter.GetBytes(addr.Flow_LocalAddr0).CopyTo(bytes, 0);
+            BitConverter.GetBytes(addr.Flow_LocalAddr1).CopyTo(bytes, 4);
+            BitConverter.GetBytes(addr.Flow_LocalAddr2).CopyTo(bytes, 8);
+            BitConverter.GetBytes(addr.Flow_LocalAddr3).CopyTo(bytes, 12);
+        }
+        else
+        {
+            BitConverter.GetBytes(addr.Flow_RemoteAddr0).CopyTo(bytes, 0);
+            BitConverter.GetBytes(addr.Flow_RemoteAddr1).CopyTo(bytes, 4);
+            BitConverter.GetBytes(addr.Flow_RemoteAddr2).CopyTo(bytes, 8);
+            BitConverter.GetBytes(addr.Flow_RemoteAddr3).CopyTo(bytes, 12);
+        }
+        return new IPAddress(bytes);
+    }
+
+    //  Bootstrap 
+
+    /// <summary>
+    ///   Load all already-established TCP/UDP connections from IP Helper API
+    ///   so they appear in the UI immediately (FLOW layer only fires for new flows).
+    /// </summary>
+    private void BootstrapExistingConnections()
+    {
+        foreach (var c in GetTcpConnections())  _connections.TryAdd(c.Id, c);
+        foreach (var c in GetUdpConnections())  _connections.TryAdd(c.Id, c);
+        foreach (var c in GetTcp6Connections()) _connections.TryAdd(c.Id, c);
+        foreach (var c in GetUdp6Connections()) _connections.TryAdd(c.Id, c);
+    }
+
+    //  Poller Refresh (reduced scope) 
+
+    /// <summary>
+    ///   Now only responsible for:
+    ///   - ARP / IPv6 NDP (not available via WinDivert)
+    ///   - Non-TCP/UDP protocols (from NETWORK sniff)
+    ///   - Stale connection cleanup (backup for missed FLOW DELETED events)
+    ///   - Full IP Helper fallback when WinDivert is unavailable
+    /// </summary>
+    private void Refresh()
+    {
+        //  ARP + IPNET 
+        var arpEntries  = GetArpTable();
+        var ipnet6Entries = GetIpnet6Table();
+
+        var all = _sharedAllList;
+        all.Clear();
+
+        var now = DateTime.UtcNow;
+
+        if (_useApiFallback)
+        {
+            // WinDivert unavailable — fall back to full IP Helper API
+            all.AddRange(GetTcpConnections());
+            all.AddRange(GetUdpConnections());
+            all.AddRange(GetTcp6Connections());
+            all.AddRange(GetUdp6Connections());
+            all.AddRange(arpEntries);
+            all.AddRange(ipnet6Entries);
+        }
+        else
+        {
+            //  Non-TCP/UDP from WinDivert NETWORK sniff ─
+            var expiredRawKeys = _sharedExpiredKeysList;
+            expiredRawKeys.Clear();
+            foreach (var kvp in _rawConnections)
+            {
+                if ((now - kvp.Value.LastSeen).TotalSeconds > 15)
+                    expiredRawKeys.Add(kvp.Key);
+            }
+            foreach (var key in expiredRawKeys)
+                _rawConnections.TryRemove(key, out _);
+
+            foreach (var c in _rawConnections.Values)
+            {
+                if (c.Protocol != NetworkProtocol.TCP && c.Protocol != NetworkProtocol.UDP)
+                    all.Add(c);
+            }
+
+            //  Stale flow connection cleanup ─
+            // FLOW DELETED events are reliable, but this catches edge cases
+            // where the process exits without clean teardown.
+            var staleFlowKeys = _sharedStaleFlowKeys;
+            staleFlowKeys.Clear();
+            foreach (var kvp in _connections)
+            {
+                if ((now - kvp.Value.LastSeen).TotalSeconds > 120)
+                    staleFlowKeys.Add(kvp.Key);
+            }
+            foreach (var key in staleFlowKeys)
+            {
+                if (_connections.TryRemove(key, out var staleEntry))
+                {
+                    ConnectionRemoved?.Invoke(this, staleEntry);
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[ConnectionMonitor] Stale cleanup: {staleEntry.ProcessName ?? "?"}");
+                }
+            }
+
+            all.AddRange(arpEntries);
+            all.AddRange(ipnet6Entries);
+        }
+
+        //  Reusable sets 
+        var updated = _sharedUpdatedSet;
+        updated.Clear();
+        foreach (var c in all)
+            updated.Add(c.Id);
+
+        var removed = _sharedRemovedList;
+        removed.Clear();
+
+        var newlyAdded = _sharedNewlyAddedList;
+        newlyAdded.Clear();
+
+        lock (_sync)
+        {
+            // Detect removals
+            // In fallback mode (no WinDivert), poller manages all protocols.
+            // In normal mode, TCP/UDP are managed by FLOW events (FLOW_ESTABLISHED/DELETED).
+            foreach (var kvp in _connections)
+            {
+                if (!_useApiFallback)
+                {
+                    if (kvp.Value.Protocol == NetworkProtocol.TCP ||
+                        kvp.Value.Protocol == NetworkProtocol.UDP)
+                        continue;
+                }
+                if (!updated.Contains(kvp.Key))
+                    removed.Add(kvp.Value);
+            }
+            foreach (var r in removed)
+                _connections.TryRemove(r.Id, out _);
+
+            // Add or update
+            foreach (var c in all)
+            {
+                if (_connections.TryGetValue(c.Id, out var existing))
+                {
+                    existing.LastSeen = now;
+                    existing.TcpState = c.TcpState;
+                }
+                else
+                {
+                    if (_connections.TryAdd(c.Id, c))
+                        newlyAdded.Add(c);
+                }
+            }
+        }
+
+        // Fire events outside lock
+        foreach (var r in removed)
+            ConnectionRemoved?.Invoke(this, r);
+
+        foreach (var c in newlyAdded)
+            ConnectionAdded?.Invoke(this, c);
+
+        // IMPORTANT: Send FULL current snapshot, not just 'all' (which excludes TCP/UDP in normal mode)
+        // This ensures UI always sees complete picture including FLOW-managed TCP/UDP connections
+        var fullSnapshot = new List<ConnectionEntry>(_connections.Count + _rawConnections.Count);
+        fullSnapshot.AddRange(_connections.Values);
+        fullSnapshot.AddRange(_rawConnections.Values);
+        ConnectionsUpdated?.Invoke(this, fullSnapshot);
+
+        RefreshStats();
+    }
+
+    //  Shared reusable collections (avoid allocations per Refresh cycle) 
+    private readonly List<ConnectionEntry> _sharedAllList = new();
+    private readonly HashSet<long> _sharedUpdatedSet = new();
+    private readonly List<long> _sharedExpiredKeysList = new();
+    private readonly List<long> _sharedStaleFlowKeys = new();
+    private readonly List<ConnectionEntry> _sharedRemovedList = new();
+    private readonly List<ConnectionEntry> _sharedNewlyAddedList = new();
 
     /// <summary>Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.</summary>
     public void Dispose()

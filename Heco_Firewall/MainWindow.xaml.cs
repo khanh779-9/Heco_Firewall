@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Runtime.Versioning;
 using System.Windows;
 using System.Windows.Input;
 using Heco_Firewall.ViewModels;
@@ -7,6 +8,7 @@ using Heco_Firewall.Windows;
 
 namespace Heco_Firewall;
 
+[SupportedOSPlatform("windows")]
 public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
@@ -58,7 +60,7 @@ public partial class MainWindow : Window
     //         await _vm.CloseEngineAsync();
     // }
 
-    // ── Navigation ───────────────────────────────────────────────
+    //  Navigation 
 
     private void ShowPage(string pageName)
     {
@@ -131,7 +133,7 @@ public partial class MainWindow : Window
     private void NavBlocklists_Click(object sender, RoutedEventArgs e) => ShowPage("Blocklists");
     private void NavActivity_Click(object sender, RoutedEventArgs e) => ShowPage("Activity");
 
-    // ── Window Controls ──────────────────────────────────────────
+    //  Window Controls ─
 
     private void OnTitleBarMouseDown(object sender, MouseButtonEventArgs e)
     {

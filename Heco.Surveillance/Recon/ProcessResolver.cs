@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Management;
+using System.Runtime.Versioning;
 
 namespace Heco.Surveillance.Recon;
 
@@ -21,6 +22,7 @@ public static class ProcessResolver
     }
 
     /// <summary>Get the full command line for a process.</summary>
+    [SupportedOSPlatform("windows")]
     public static string? GetCommandLine(int pid)
     {
         try

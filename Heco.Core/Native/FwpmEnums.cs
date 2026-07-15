@@ -13,7 +13,7 @@ internal enum FWPM_ENGINE_OPTION : uint
     PacketQueuing          = 0x00000007,
 }
 
-// ── Session Flags ───────────────────────────────────────────────
+//  Session Flags 
 [Flags]
 internal enum FWPM_SESSION_FLAG : uint
 {
@@ -21,21 +21,21 @@ internal enum FWPM_SESSION_FLAG : uint
     Dynamic = 0x00000001,
 }
 
-// ── Provider Flags ──────────────────────────────────────────────
+//  Provider Flags ─
 [Flags]
 internal enum FWPM_PROVIDER_FLAG : ulong
 {
     None = 0,
 }
 
-// ── SubLayer Flags ──────────────────────────────────────────────
+//  SubLayer Flags ─
 [Flags]
 internal enum FWPM_SUBLAYER_FLAG : ulong
 {
     None = 0,
 }
 
-// ── Filter Flags ────────────────────────────────────────────────
+//  Filter Flags ─
 [Flags]
 internal enum FWPM_FILTER_FLAG : uint
 {
@@ -49,7 +49,7 @@ internal enum FWPM_FILTER_FLAG : uint
     Indexed                    = 0x00000040,
 }
 
-// ── Data Types ──────────────────────────────────────────────────
+//  Data Types 
 internal enum FWP_DATA_TYPE : uint
 {
     Empty                = 0,
@@ -75,7 +75,7 @@ internal enum FWP_DATA_TYPE : uint
     V6AddrMask           = 20,
 }
 
-// ── Match Types ─────────────────────────────────────────────────
+//  Match Types 
 internal enum FWP_MATCH_TYPE : uint
 {
     Equal           = 0,
@@ -93,7 +93,7 @@ internal enum FWP_MATCH_TYPE : uint
     NotPrefix       = 12,
 }
 
-// ── Action Types ────────────────────────────────────────────────
+//  Action Types ─
 internal enum FWP_ACTION_TYPE : uint
 {
     Block               = 0x00000001,

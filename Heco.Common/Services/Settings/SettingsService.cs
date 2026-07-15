@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using Microsoft.Win32;
+using System.Runtime.Versioning;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using Heco.Common.Services.Settings;
@@ -54,7 +55,8 @@ public sealed class SettingsService : ISettingsService, IDisposable
         AppSettings.OnPropertyChangedCallback = () =>
         {
             ScheduleSave();
-            SyncAutoStartRegistry();
+            if (OperatingSystem.IsWindows())
+                SyncAutoStartRegistry();
         };
     }
 
@@ -147,6 +149,7 @@ public sealed class SettingsService : ISettingsService, IDisposable
     /// <summary>
     ///   Sync the auto-start registry entry with the current setting.
     /// </summary>
+    [SupportedOSPlatform("windows")]
     private void SyncAutoStartRegistry()
     {
         try

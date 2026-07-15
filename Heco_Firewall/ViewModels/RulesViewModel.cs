@@ -37,7 +37,7 @@ internal sealed class RulesViewModel : ObservableObject
         DiscardCommand = new RelayCommand(DiscardChanges);
     }
 
-    // ── Collections ──────────────────────────────────────────────
+    //  Collections ─
 
     public ObservableCollection<FirewallRule> Rules { get; } = new();
     public ObservableCollection<RuleAction> AvailableActions { get; } = new([RuleAction.Permit, RuleAction.Block]);
@@ -72,7 +72,7 @@ internal sealed class RulesViewModel : ObservableObject
     ]);
     public ObservableCollection<AddressFamily> AvailableAddressFamilies { get; } = new([AddressFamily.Both, AddressFamily.IPv4, AddressFamily.IPv6]);
 
-    // ── Selection ────────────────────────────────────────────────
+    //  Selection ─
 
     public bool SelectAll
     {
@@ -136,14 +136,14 @@ internal sealed class RulesViewModel : ObservableObject
         set => SetProperty(ref _isEditing, value);
     }
 
-    // ── Stats ────────────────────────────────────────────────────
+    //  Stats 
 
     public int TotalRules => Rules.Count;
     public int ActiveRules => Rules.Count(r => r.IsEnabled);
     public int BlockRules => Rules.Count(r => r.Action == RuleAction.Block);
     public int PermitRules => Rules.Count(r => r.Action == RuleAction.Permit);
 
-    // ── Commands ─────────────────────────────────────────────────
+    //  Commands 
 
     public ICommand AddRuleCommand { get; }
     public ICommand EditRuleCommand { get; }
@@ -154,7 +154,7 @@ internal sealed class RulesViewModel : ObservableObject
     public ICommand SaveCommand { get; }
     public ICommand DiscardCommand { get; }
 
-    // ── Load / Persist ───────────────────────────────────────────
+    //  Load / Persist 
 
     public void LoadRules()
     {
@@ -215,7 +215,7 @@ internal sealed class RulesViewModel : ObservableObject
         }
     }
 
-    // ── Single Operations ────────────────────────────────────────
+    //  Single Operations 
 
     public async System.Threading.Tasks.Task DeleteRuleAsync()
     {
@@ -264,7 +264,7 @@ internal sealed class RulesViewModel : ObservableObject
         RefreshStats();
     }
 
-    // ── Batch Operations ─────────────────────────────────────────
+    //  Batch Operations 
 
     public async System.Threading.Tasks.Task DeleteSelectedAsync()
     {
@@ -320,7 +320,7 @@ internal sealed class RulesViewModel : ObservableObject
         RefreshStats();
     }
 
-    // ── Helpers ──────────────────────────────────────────────────
+    //  Helpers 
 
     private void RefreshSelectedRules()
     {
@@ -355,11 +355,12 @@ internal sealed class RulesViewModel : ObservableObject
     //     }
     // }
 
-    public void ClearWfpFilterIds()
-    {
-        foreach (var rule in Rules)
-            rule.WfpFilterId = 0;
-    }
+    // [WFP DISABLED]
+    // public void ClearWfpFilterIds()
+    // {
+    //     foreach (var rule in Rules)
+    //         rule.WfpFilterId = 0;
+    // }
 
     public void AddAndApplyRule(FirewallRule rule)
     {

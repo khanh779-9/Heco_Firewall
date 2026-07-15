@@ -69,7 +69,7 @@ public sealed class ConnectionEntry
     /// <summary>Time of last activity.</summary>
     public DateTime LastSeen { get; set; } = DateTime.UtcNow;
 
-    // ── Enriched fields (populated by UI layer) ──────────────────
+    //  Enriched fields (populated by UI layer) 
 
     /// <summary>Resolved profile name from ProfileManager.</summary>
     public string? ProfileName { get; set; }
@@ -86,7 +86,7 @@ public sealed class ConnectionEntry
     /// <summary>Organization name from GeoIP lookup.</summary>
     public string? Organization { get; set; }
 
-    // ── Bandwidth enrichment (populated by BandwidthTracker) ─────
+    //  Bandwidth enrichment (populated by BandwidthTracker) ─
 
     /// <summary>Current send rate in KB/s.</summary>
     public double SentKbps { get; set; }

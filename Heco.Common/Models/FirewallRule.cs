@@ -32,7 +32,7 @@ public sealed class FirewallRule
     /// <summary>Protocol to match (Any, TCP, UDP, ICMP…).</summary>
     public NetworkProtocol Protocol { get; set; } = NetworkProtocol.Any;
 
-    // ── Ports ──────────────────────────────────────────────────
+    //  Ports 
 
     /// <summary>Local port filter. Null = any.</summary>
     public ushort? LocalPort { get; set; }
@@ -40,7 +40,7 @@ public sealed class FirewallRule
     /// <summary>Remote port filter. Null = any.</summary>
     public ushort? RemotePort { get; set; }
 
-    // ── Addresses ──────────────────────────────────────────────
+    //  Addresses ─
 
     /// <summary>Local address in CIDR notation ("192.168.1.0/24"). Null = any.</summary>
     public string? LocalAddress { get; set; }
@@ -48,7 +48,7 @@ public sealed class FirewallRule
     /// <summary>Remote address in CIDR notation. Null = any.</summary>
     public string? RemoteAddress { get; set; }
 
-    // ── Application / Identity ─────────────────────────────────
+    //  Application / Identity 
 
     /// <summary>Full path to the executable. Null = any application.</summary>
     public string? ApplicationPath { get; set; }
@@ -59,7 +59,7 @@ public sealed class FirewallRule
     /// <summary>Windows service short name. Null = any.</summary>
     public string? ServiceName { get; set; }
 
-    // ── Metadata ───────────────────────────────────────────────
+    //  Metadata 
 
     /// <summary>When this rule was created.</summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

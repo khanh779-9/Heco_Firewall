@@ -86,7 +86,7 @@ public sealed class NetworkMonitor : INetworkMonitor, IDisposable
         }
     }
 
-    // ── Network table update ─────────────────────────────────────
+    //  Network table update ─
 
     private void UpdateNetworkTables()
     {
@@ -156,7 +156,7 @@ public sealed class NetworkMonitor : INetworkMonitor, IDisposable
         }
     }
 
-    // ── P/Invoke: GetExtendedTcpTable ────────────────────────────
+    //  P/Invoke: GetExtendedTcpTable ─
 
     [DllImport("iphlpapi.dll", SetLastError = true)]
     private static extern uint GetExtendedTcpTable(IntPtr pTcpTable, ref int dwOutBufLen, bool sort, int ipVersion, TcpTableClass tblClass, uint reserved = 0);
@@ -438,7 +438,7 @@ public sealed class NetworkMonitor : INetworkMonitor, IDisposable
         return entries;
     }
 
-    // ── Adapter monitoring ───────────────────────────────────────
+    //  Adapter monitoring ─
 
     private void UpdateAdapters()
     {
@@ -510,7 +510,7 @@ public sealed class NetworkMonitor : INetworkMonitor, IDisposable
         return adapters;
     }
 
-    // ── Helpers ──────────────────────────────────────────────────
+    //  Helpers 
 
     private static ushort PortNetToHost(uint netPort)
     {

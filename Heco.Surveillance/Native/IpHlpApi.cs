@@ -10,11 +10,11 @@ namespace Heco.Surveillance.Native;
 /// </summary>
 internal static class IpHlpApi
 {
-    // ── Address families ─────────────────────────────────────────
+    //  Address families 
     internal const ushort AF_INET  = 2;
     internal const ushort AF_INET6 = 23;
 
-    // ── TCP table classes ────────────────────────────────────────
+    //  TCP table classes 
     internal const uint TCP_TABLE_BASIC_LISTENER       = 0;
     internal const uint TCP_TABLE_BASIC_CONNECTIONS     = 1;
     internal const uint TCP_TABLE_BASIC_ALL             = 2;
@@ -29,7 +29,7 @@ internal static class IpHlpApi
     internal const uint UDP_TABLE_OWNER_PID   = 1;
     internal const uint UDP_TABLE_OWNER_MODULE = 2;
 
-    // ── TCP states (MIB_TCP_STATE) ──────────────────────────────
+    //  TCP states (MIB_TCP_STATE) ─
     internal const uint MIB_TCP_STATE_CLOSED     = 0;
     internal const uint MIB_TCP_STATE_LISTEN     = 1;
     internal const uint MIB_TCP_STATE_SYN_SENT   = 2;
@@ -43,7 +43,7 @@ internal static class IpHlpApi
     internal const uint MIB_TCP_STATE_TIME_WAIT  = 10;
     internal const uint MIB_TCP_STATE_DELETE_TCB = 11;
 
-    // ── TCP structures ───────────────────────────────────────────
+    //  TCP structures 
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct MIB_TCPROW_OWNER_PID
@@ -98,7 +98,7 @@ internal static class IpHlpApi
         public uint owningPid;
     }
 
-    // ── ARP / IPNET (v4) structures ──────────────────────────────
+    //  ARP / IPNET (v4) structures ─
 
     internal const int MAXLEN_PHYSADDR = 8;
 
@@ -127,7 +127,7 @@ internal static class IpHlpApi
         public uint dwNumEntries;
     }
 
-    // ── IPNET (v6) structures (GetIpNetTable2) ──────────────────
+    //  IPNET (v6) structures (GetIpNetTable2) 
 
     internal enum NL_NEIGHBOR_STATE
     {
@@ -160,7 +160,7 @@ internal static class IpHlpApi
         // Followed by MIB_IPNET_ROW2[NumEntries] inline
     }
 
-    // ── ICMP statistics structures ───────────────────────────────
+    //  ICMP statistics structures 
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct MIB_ICMPSTATS
@@ -187,7 +187,7 @@ internal static class IpHlpApi
         public MIB_ICMPSTATS icmpOutStats;
     }
 
-    // ── IP statistics structures ─────────────────────────────────
+    //  IP statistics structures 
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct MIB_IPSTATS
@@ -217,7 +217,7 @@ internal static class IpHlpApi
         public uint dwNumRoutes;
     }
 
-    // ── API: TCP/UDP ─────────────────────────────────────────────
+    //  API: TCP/UDP 
 
     [DllImport("iphlpapi.dll", SetLastError = true)]
     internal static extern uint GetExtendedTcpTable(
@@ -229,7 +229,7 @@ internal static class IpHlpApi
         nint pUdpTable, ref uint pdwSize, bool bOrder,
         uint af, uint tableClass, uint reserved);
 
-    // ── API: ARP / IPNET ─────────────────────────────────────────
+    //  API: ARP / IPNET 
 
     [DllImport("iphlpapi.dll", SetLastError = true)]
     internal static extern int GetIpNetTable(
@@ -242,7 +242,7 @@ internal static class IpHlpApi
     [DllImport("iphlpapi.dll")]
     internal static extern void FreeMibTable(nint Memory);
 
-    // ── API: ICMP / IP stats ─────────────────────────────────────
+    //  API: ICMP / IP stats ─
 
     [DllImport("iphlpapi.dll")]
     internal static extern int GetIcmpStatistics(ref MIB_ICMPINFO pStats);
@@ -250,7 +250,7 @@ internal static class IpHlpApi
     [DllImport("iphlpapi.dll")]
     internal static extern int GetIpStatistics(ref MIB_IPSTATS pStats);
 
-    // ── API: DHCP / adapter info ─────────────────────────────────
+    //  API: DHCP / adapter info 
 
     internal const uint GAA_FLAG_INCLUDE_PREFIX = 0x0010;
     internal const uint GAA_FLAG_SKIP_DNS_SERVER = 0x0002;
@@ -296,7 +296,7 @@ internal static class IpHlpApi
         uint Family, uint Flags, nint Reserved,
         nint AdapterAddresses, ref uint SizePointer);
 
-    // ── SOCKADDR helpers ─────────────────────────────────────────
+    //  SOCKADDR helpers 
 
     internal static unsafe IPAddress? ReadSockAddr(nint addrPtr)
     {

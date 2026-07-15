@@ -4,15 +4,15 @@ namespace Heco.Core.Native;
 
 internal static class WfpLayers
 {
-    // ── ALE Connect (outbound) ──────────────────────────────────
+    //  ALE Connect (outbound) ─
     public static readonly Guid AleAuthConnectV4     = new("2A5FFBA1-E8B4-4DC7-A27F-2577BA1A6340");
     public static readonly Guid AleAuthConnectV6     = new("78C2B39A-31AF-44F8-8E9F-A38213F543EC");
 
-    // ── ALE Receive/Accept (inbound) ────────────────────────────
+    //  ALE Receive/Accept (inbound) ─
     public static readonly Guid AleAuthRecvAcceptV4  = new("E1CDD904-C67C-4763-A862-4C47274A80B0");
     public static readonly Guid AleAuthRecvAcceptV6  = new("2504C081-C099-4621-B567-13120B2B4223");
 
-    // ── Transport (inbound / outbound) ──────────────────────────
+    //  Transport (inbound / outbound) 
     public static readonly Guid InboundTransportV4   = new("111C5E0C-EB34-46C7-93EC-B0D298A41AAD");
     public static readonly Guid OutboundTransportV4  = new("E53F06D4-1E96-4572-A651-02A65AB31F0B");
     public static readonly Guid InboundTransportV6   = new("46951D22-5B6B-4C74-83FC-B9B33CB3C048");

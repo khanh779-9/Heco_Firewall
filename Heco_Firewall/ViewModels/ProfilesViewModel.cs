@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
+using Heco.Common.Enums;
 using Heco.Common.Services.Profiles;
 using Heco.Common.Services.Settings;
 using Heco_Firewall.Helpers;
@@ -18,39 +19,19 @@ internal sealed class ProfilesViewModel : ObservableObject
     private string _searchText = string.Empty;
     private string _statusText = string.Empty;
 
-    // Editor fields
-    private Profile? _editingProfile;
-    private bool _isEditing;
-    private string _editName = string.Empty;
-    private bool _editAllowOut;
-    private bool _editAllowIn;
-    private bool _editBlockOut;
-    private bool _editBlockIn;
-    private bool _editInheritActions = true;
-    private string _newFingerprintValue = string.Empty;
-    private FingerprintType _newFingerprintType = FingerprintType.ProcessName;
-
     public ProfilesViewModel(IProfileManager profileManager)
     {
         _profileManager = profileManager;
 
-        AutoGenerateCommand = new RelayCommand(_ => AutoGenerate());
-        DeleteProfileCommand = new RelayCommand(_ => DeleteProfile(), _ => SelectedProfile != null && !SelectedProfile.IsSpecial);
         EditProfileCommand = new RelayCommand(_ => BeginEdit(), _ => SelectedProfile != null);
-        SaveProfileCommand = new RelayCommand(_ => SaveEdit());
-        DiscardEditCommand = new RelayCommand(_ => CancelEdit());
-        AddFingerprintCommand = new RelayCommand(_ => AddFingerprint(), _ => IsEditing && !string.IsNullOrWhiteSpace(NewFingerprintValue));
-        RemoveFingerprintCommand = new RelayCommand<ProfileFingerprint>(RemoveFingerprint, _ => IsEditing);
+        DeleteProfileCommand = new RelayCommand(_ => DeleteProfile(), _ => SelectedProfile != null && !SelectedProfile.IsSpecial);
+        AutoGenerateCommand = new RelayCommand(_ => AutoGenerate());
         RefreshCommand = new RelayCommand(_ => Refresh());
-
-        AvailableFingerprintTypes = new ObservableCollection<FingerprintType>(
-            [FingerprintType.FullPath, FingerprintType.ProcessName, FingerprintType.CommandLine,
-             FingerprintType.WindowsService, FingerprintType.WindowsStore]);
 
         Refresh();
     }
 
-    // ── Properties ───────────────────────────────────────────────
+    //  Properties 
 
     public ObservableCollection<Profile> Profiles => _profileManager.Profiles;
 
@@ -85,106 +66,14 @@ internal sealed class ProfilesViewModel : ObservableObject
     public int SpecialCount => Profiles.Count(p => p.IsSpecial);
     public long TotalHits => Profiles.Sum(p => p.HitCount);
 
-    // ── Editor Properties ────────────────────────────────────────
+    //  Commands 
 
-    public bool IsEditing
-    {
-        get => _isEditing;
-        set => SetProperty(ref _isEditing, value);
-    }
-
-    public Profile? EditingProfile
-    {
-        get => _editingProfile;
-        set => SetProperty(ref _editingProfile, value);
-    }
-
-    public string EditName
-    {
-        get => _editName;
-        set
-        {
-            if (SetProperty(ref _editName, value) && EditingProfile != null)
-                EditingProfile.Name = value;
-        }
-    }
-
-    public ObservableCollection<ProfileFingerprint> EditingFingerprints { get; } = new();
-
-    public bool EditAllowOut
-    {
-        get => _editAllowOut;
-        set => SetProperty(ref _editAllowOut, value);
-    }
-
-    public bool EditAllowIn
-    {
-        get => _editAllowIn;
-        set => SetProperty(ref _editAllowIn, value);
-    }
-
-    public bool EditBlockOut
-    {
-        get => _editBlockOut;
-        set => SetProperty(ref _editBlockOut, value);
-    }
-
-    public bool EditBlockIn
-    {
-        get => _editBlockIn;
-        set => SetProperty(ref _editBlockIn, value);
-    }
-
-    public bool EditInheritActions
-    {
-        get => _editInheritActions;
-        set
-        {
-            if (SetProperty(ref _editInheritActions, value))
-            {
-                // When inheriting, clear all action overrides
-                if (value && EditingProfile != null)
-                {
-                    EditingProfile.ActionOverride = null;
-                    OnPropertyChanged(nameof(EditAllowOut));
-                    OnPropertyChanged(nameof(EditAllowIn));
-                    OnPropertyChanged(nameof(EditBlockOut));
-                    OnPropertyChanged(nameof(EditBlockIn));
-                }
-            }
-        }
-    }
-
-    public string NewFingerprintValue
-    {
-        get => _newFingerprintValue;
-        set
-        {
-            if (SetProperty(ref _newFingerprintValue, value))
-                CommandManager.InvalidateRequerySuggested();
-        }
-    }
-
-    public FingerprintType NewFingerprintType
-    {
-        get => _newFingerprintType;
-        set => SetProperty(ref _newFingerprintType, value);
-    }
-
-    public ObservableCollection<FingerprintType> AvailableFingerprintTypes { get; }
-
-    // ── Commands ─────────────────────────────────────────────────
-
-    public ICommand AutoGenerateCommand { get; }
-    public ICommand DeleteProfileCommand { get; }
     public ICommand EditProfileCommand { get; }
-    public ICommand SaveProfileCommand { get; }
-    public ICommand DiscardEditCommand { get; }
-    public ICommand AddFingerprintCommand { get; }
-    public ICommand RemoveFingerprintCommand { get; }
+    public ICommand DeleteProfileCommand { get; }
+    public ICommand AutoGenerateCommand { get; }
     public ICommand RefreshCommand { get; }
 
-    // ── Methods ───────────────────────────────────────────────────
+    //  Methods ─
 
     public void Refresh()
     {
@@ -200,125 +89,22 @@ internal sealed class ProfilesViewModel : ObservableObject
     {
         if (SelectedProfile == null) return;
 
-        // Clone for editing
-        var profile = SelectedProfile;
-        _editName = profile.Name;
-
-        EditingFingerprints.Clear();
-        foreach (var fp in profile.Fingerprints)
+        var window = new ProfileEditWindow(_profileManager, SelectedProfile)
         {
-            EditingFingerprints.Add(new ProfileFingerprint
-            {
-                Type = fp.Type,
-                Operator = fp.Operator,
-                Value = fp.Value
-            });
-        }
-
-        // Action override
-        if (profile.ActionOverride != null)
-        {
-            _editInheritActions = false;
-            _editAllowOut = profile.ActionOverride.AllowOutbound == true;
-            _editAllowIn = profile.ActionOverride.AllowInbound == true;
-            _editBlockOut = profile.ActionOverride.BlockOutbound == true;
-            _editBlockIn = profile.ActionOverride.BlockInbound == true;
-        }
-        else
-        {
-            _editInheritActions = true;
-            _editAllowOut = false;
-            _editAllowIn = false;
-            _editBlockOut = false;
-            _editBlockIn = false;
-        }
-
-        EditingProfile = new Profile
-        {
-            Name = _editName,
-            IsSpecial = profile.IsSpecial,
-            IsAutoGenerated = profile.IsAutoGenerated,
-            CreatedAt = profile.CreatedAt,
-            HitCount = profile.HitCount
+            Owner = Application.Current.MainWindow
         };
 
-        PushActionOverride();
-        IsEditing = true;
-    }
-
-    private void SaveEdit()
-    {
-        if (EditingProfile == null) return;
-
-        var profile = EditingProfile;
-        profile.Name = _editName;
-
-        // Sync fingerprints
-        profile.Fingerprints.Clear();
-        foreach (var fp in EditingFingerprints)
+        if (window.ShowDialog() == true)
         {
-            profile.Fingerprints.Add(new ProfileFingerprint
-            {
-                Type = fp.Type,
-                Operator = fp.Operator,
-                Value = fp.Value
-            });
+            SelectedProfile = null;
+            Refresh();
         }
-
-        PushActionOverride();
-        _profileManager.SaveProfile(profile);
-        IsEditing = false;
-        SelectedProfile = null;
-        Refresh();
-    }
-
-    private void CancelEdit()
-    {
-        IsEditing = false;
-    }
-
-    private void PushActionOverride()
-    {
-        if (EditingProfile == null) return;
-
-        if (_editInheritActions)
-        {
-            EditingProfile.ActionOverride = null;
-        }
-        else
-        {
-            EditingProfile.ActionOverride ??= new NetworkActionSettings();
-            EditingProfile.ActionOverride.AllowOutbound = _editAllowOut ? true : null;
-            EditingProfile.ActionOverride.AllowInbound = _editAllowIn ? true : null;
-            EditingProfile.ActionOverride.BlockOutbound = _editBlockOut ? true : null;
-            EditingProfile.ActionOverride.BlockInbound = _editBlockIn ? true : null;
-        }
-    }
-
-    private void AddFingerprint()
-    {
-        if (string.IsNullOrWhiteSpace(_newFingerprintValue)) return;
-
-        EditingFingerprints.Add(new ProfileFingerprint
-        {
-            Type = _newFingerprintType,
-            Operator = MatchOperator.Equals,
-            Value = _newFingerprintValue.Trim()
-        });
-        NewFingerprintValue = string.Empty;
-    }
-
-    private void RemoveFingerprint(ProfileFingerprint? fingerprint)
-    {
-        if (fingerprint != null)
-            EditingFingerprints.Remove(fingerprint);
     }
 
     private void AutoGenerate()
     {
         try
         {
-            // Auto-generate profiles for running processes without one
             var processes = System.Diagnostics.Process.GetProcesses()
                 .Where(p =>
                 {

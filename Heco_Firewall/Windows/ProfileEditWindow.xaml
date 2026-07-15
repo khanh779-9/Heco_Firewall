@@ -1,0 +1,128 @@
+<win:BaseWindow x:Class="Heco_Firewall.Windows.ProfileEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:win="clr-namespace:Heco_Firewall.Windows"
+        xmlns:prof="clr-namespace:Heco.Common.Services.Profiles"
+        Title="Edit Profile" Height="520" Width="560"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Style="{StaticResource HecoWindowStyle}"
+        FontFamily="Segoe UI" FontSize="13">
+
+    <win:BaseWindow.Resources>
+        <Style x:Key="FingerprintItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderThickness="0" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource BrushBgHover}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </win:BaseWindow.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /> <!-- Title -->
+            <RowDefinition Height="*" />     <!-- Content -->
+            <RowDefinition Height="Auto" /> <!-- Buttons -->
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="TblTitle" Grid.Row="0" FontSize="15" FontWeight="SemiBold"
+                   Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,12" />
+
+        <!-- Editor Content -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <!-- Profile Name -->
+                <TextBlock Text="Profile Name" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,4" />
+                <TextBox x:Name="TxtName" Margin="0,0,0,12" Height="28" />
+
+                <!-- Fingerprints -->
+                <TextBlock Text="Fingerprints" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,4" />
+                <Border Background="{StaticResource BrushBgCard}"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
+                        CornerRadius="6" Padding="0" Margin="0,0,0,4">
+                    <ListBox x:Name="FingerprintsList" Background="Transparent" BorderThickness="0"
+                             MaxHeight="140" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ItemContainerStyle="{StaticResource FingerprintItemStyle}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="prof:ProfileFingerprint">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="80" />
+                                        <ColumnDefinition Width="60" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding Type}"
+                                               Foreground="{StaticResource BrushTextSecondary}" FontSize="11" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Operator}"
+                                               Foreground="{StaticResource BrushTextSecondary}" FontSize="11" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Value}"
+                                               Foreground="{StaticResource BrushTextPrimary}" FontSize="12" />
+                                    <Button Grid.Column="3" Content="✕" FontSize="10"
+                                            Background="Transparent" Foreground="{StaticResource BrushRed}"
+                                            BorderThickness="0" Padding="4,0" Cursor="Hand"
+                                            Click="RemoveFingerprint_Click" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+
+                <!-- Add Fingerprint -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="100" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ComboBox x:Name="CboFingerprintType" Grid.Column="0" FontSize="11" Margin="0,0,4,0" Height="26" />
+                    <TextBox x:Name="TxtNewFingerprint" Grid.Column="1" FontSize="11" Margin="0,0,4,0" Height="26" />
+                    <Button Grid.Column="2" Content="＋ Add" FontSize="11"
+                            Style="{StaticResource BtnSecondary}" Padding="8,2"
+                            Click="AddFingerprint_Click" Height="26" />
+                </Grid>
+
+                <!-- Action Override -->
+                <TextBlock Text="Network Action Override" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,4" />
+                <CheckBox x:Name="ChkInherit" Content="Inherit global settings (no override)"
+                          Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,6"
+                          Checked="Inherit_Checked" Unchecked="Inherit_Unchecked" />
+
+                <Border Background="{StaticResource BrushBgCard}" BorderBrush="{StaticResource BrushBorder}"
+                        BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,4">
+                    <WrapPanel>
+                        <CheckBox x:Name="ChkAllowOut" Content="Allow Outbound" Margin="0,0,16,0"
+                                  Foreground="{StaticResource BrushGreen}" />
+                        <CheckBox x:Name="ChkAllowIn" Content="Allow Inbound" Margin="0,0,16,0"
+                                  Foreground="{StaticResource BrushGreen}" />
+                        <CheckBox x:Name="ChkBlockOut" Content="Block Outbound" Margin="0,0,16,0"
+                                  Foreground="{StaticResource BrushRed}" />
+                        <CheckBox x:Name="ChkBlockIn" Content="Block Inbound"
+                                  Foreground="{StaticResource BrushRed}" />
+                    </WrapPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Content="Cancel" Style="{StaticResource BtnDanger}"
+                    Click="Cancel_Click" IsCancel="True" Margin="0,0,8,0" Padding="16,8" />
+            <Button Content="Save Profile" Style="{StaticResource BtnPrimary}"
+                    Click="Save_Click" IsDefault="True" Padding="16,8" />
+        </StackPanel>
+    </Grid>
+</win:BaseWindow>

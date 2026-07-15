@@ -13,6 +13,7 @@
         </EventTrigger>
     </UserControl.Triggers>
 
+    <ScrollViewer Margin="0,0,20,0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
@@ -239,4 +240,5 @@
             </StackPanel>
         </Border>
     </Grid>
+    </ScrollViewer>
 </UserControl>

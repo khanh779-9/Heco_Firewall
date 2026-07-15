@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Security.Principal;
 using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
@@ -69,7 +70,7 @@ public class SelfDefenseDriver : IDisposable
         public int BlockedAttempts;
     }
 
-    // ── Win32 P/Invoke ────────────────────────────────────────────────
+    //  Win32 P/Invoke ─
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern SafeFileHandle CreateFile(
@@ -167,7 +168,7 @@ public class SelfDefenseDriver : IDisposable
 
     private const string HECO_SYSTEM32_DRIVERS = @"\system32\drivers\";
 
-    // ── Public API ─────────────────────────────────────────────────────
+    //  Public API ─
 
     /// <summary>
     /// Install the HecoProtect driver (requires administrator).
@@ -175,6 +176,7 @@ public class SelfDefenseDriver : IDisposable
     /// </summary>
     public bool Install(string driverSysPath)
     {
+        if (!OperatingSystem.IsWindows()) return false;
         EnsureAdmin();
 
         try
@@ -225,6 +227,7 @@ public class SelfDefenseDriver : IDisposable
     /// </summary>
     public bool Start()
     {
+        if (!OperatingSystem.IsWindows()) return false;
         EnsureAdmin();
 
         var scm = OpenSCManager(null, null, SC_MANAGER_ALL_ACCESS);
@@ -315,6 +318,7 @@ public class SelfDefenseDriver : IDisposable
     /// </summary>
     public bool Uninstall()
     {
+        if (!OperatingSystem.IsWindows()) return false;
         EnsureAdmin();
 
         try
@@ -517,7 +521,7 @@ public class SelfDefenseDriver : IDisposable
         Stop();
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────
+    //  Helpers 
 
     private bool IsDriverInstalled()
     {
@@ -554,6 +558,7 @@ public class SelfDefenseDriver : IDisposable
         return _deviceHandle != null && !_deviceHandle.IsInvalid;
     }
 
+    [SupportedOSPlatform("windows")]
     private static void EnsureAdmin()
     {
         using var identity = WindowsIdentity.GetCurrent();

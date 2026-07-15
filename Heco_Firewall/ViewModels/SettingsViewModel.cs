@@ -33,11 +33,11 @@ internal sealed class SettingsViewModel : ObservableObject
         OpenMmdbViewerCommand = new RelayCommand(_ => OpenMmdbViewer());
     }
 
-    // ── Settings objects (bound directly from XAML) ──────────────
+    //  Settings objects (bound directly from XAML) ─
 
     public SettingsApplication AppSettings { get; }
 
-    // ── Self-Defense Properties ─────────────────────────────────
+    //  Self-Defense Properties 
 
     public bool IsSelfDefenseBusy
     {
@@ -61,7 +61,7 @@ internal sealed class SettingsViewModel : ObservableObject
         set => SetProperty(ref _blockedAttempts, value);
     }
 
-    // ── GeoIP ────────────────────────────────────────────────────
+    //  GeoIP 
 
     public ICommand OpenGeoIpDownloadCommand { get; }
 
@@ -99,7 +99,7 @@ internal sealed class SettingsViewModel : ObservableObject
         }
     }
 
-    // ── Commands ─────────────────────────────────────────────────
+    //  Commands 
 
     public ICommand SaveCommand { get; }
     public ICommand ToggleSelfDefenseCommand { get; }
@@ -108,7 +108,7 @@ internal sealed class SettingsViewModel : ObservableObject
     /// <summary>Called by MainViewModel after settings are saved — triggers rule re-application.</summary>
     public Action? OnSettingsSaved { get; set; }
 
-    // ── Self-Defense Logic ──────────────────────────────────────
+    //  Self-Defense Logic 
 
     private async Task ToggleSelfDefenseAsync()
     {

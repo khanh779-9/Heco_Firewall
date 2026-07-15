@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.Versioning;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
@@ -23,6 +24,7 @@ public partial class PromptWindow : Window
 
     public PromptVerdict Verdict { get; private set; } = PromptVerdict.AllowOnce;
 
+    [SupportedOSPlatform("windows")]
     public PromptWindow(ConnectionEntry connection)
     {
         InitializeComponent();
@@ -59,6 +61,7 @@ public partial class PromptWindow : Window
         _timer.Start();
     }
 
+    [SupportedOSPlatform("windows")]
     private void LoadProcessIcon(string? processPath)
     {
         if (string.IsNullOrEmpty(processPath) || !System.IO.File.Exists(processPath))

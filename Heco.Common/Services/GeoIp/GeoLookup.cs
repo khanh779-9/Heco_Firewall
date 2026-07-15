@@ -116,7 +116,7 @@ public sealed class GeoLookup : IGeoLookup, IDisposable
         Close();
     }
 
-    // ── MaxMind model records ────────────────────────────────────
+    //  MaxMind model records 
 
     private sealed class CityRecord
     {

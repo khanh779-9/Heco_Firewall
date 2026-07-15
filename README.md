@@ -4,48 +4,48 @@
 
 ---
 
-## ✨ Features
+## Features
 
-### 🔥 Packet Filtering Engine (WinDivert)
+### Packet Filtering Engine (WinDivert)
 - **Active interception** of all network traffic (inbound/outbound, TCP/UDP/ICMP/other protocols)
 - **Connection-time verdict evaluation** — decisions made at SYN packet, before connection establishes
 - **Per-application rules** — allow/block by executable path, port, protocol, IP address, or CIDR range
 - **Dynamic rule caching** — avoids repeated lookups for same application/direction
 - **Interactive mode** — prompts user for unknown connections (Allow Once / Block Once / Always Allow / Always Block)
 
-### 🛡️ Multi-Layer Verdict Pipeline
+### Multi-Layer Verdict Pipeline
 Rules are evaluated in priority order:
 1. **Blocklists** (domains/IPs) — HaGeZi, threat feeds, custom lists
 2. **Application Profiles** — auto-generated or manual, with action overrides
 3. **User Firewall Rules** — explicit allow/block rules
 4. **Interactive Prompt** — user decision for unknown connections
 
-### 🌍 GeoIP Lookup (MaxMind GeoLite2)
+### GeoIP Lookup (MaxMind GeoLite2)
 - **Country** — ISO code + name
 - **ASN** — Autonomous System Number + organization
 - **Anycast detection** — identifies anycast IPs (CDNs, cloud providers)
 - **MMDB Viewer** — built-in database inspector
 
-### 📋 Blocklist Management
+### Blocklist Management
 - **Online auto-update** from URLs (HaGeZi, OISD, threat intelligence feeds)
 - **Offline file import** — hosts files, domain lists, IP lists, wildcard patterns
 - **Bloom filter** backed for O(1) lookups with minimal memory
 - **Content types**: Domain, IP, Wildcard (`*.example.com`), Hosts file format
 - **Parent domain matching** — blocks `sub.example.com` when `example.com` is listed
 
-### 👤 Application Profiles
+### Application Profiles
 - **Auto-generation** from running processes
 - **Fingerprint matching** by: full path, process name, command line, Windows service, Store app
 - **Action overrides** — per-profile allow/block inbound/outbound
 - **Hit counting** — tracks how many connections matched each profile
 
-### 🛡️ Self-Defense Driver (Kernel-Mode)
+### Self-Defense Driver (Kernel-Mode)
 - **ELAM-certified driver** (ported from Safing Portmaster)
 - **Protection levels**: Standard / Enhanced / Maximum
 - **Prevents** process termination, memory tampering, handle manipulation
 - **Blocked attempt logging** with real-time counter
 
-### 📊 Real-Time Connection Monitor
+### Real-Time Connection Monitor
 - **Live TCP/UDP/ARP/ICMP** connection table via `iphlpapi` (polled every 1–2s)
 - **Process resolution** — PID → name, path, icon, user, service
 - **DNS cache inspection** — view resolved hostnames
@@ -53,12 +53,12 @@ Rules are evaluated in priority order:
 - **Bandwidth tracking** — per-connection KB/s sent/received
 - **Search/filter** by process, IP, port, country, profile
 
-### 📝 Activity Log
+### Activity Log
 - **Block events** — timestamp, process, protocol, addresses, ports, profile source
 - **DNS queries** — domain, type, result, blocked status
 - **Export** to CSV/JSON
 
-### 🖥️ Modern WPF UI (MVVM)
+### Modern WPF UI (MVVM)
 - **Tabbed dashboard**: Dashboard, Rules, Connections, Profiles, Blocklists, Activity, Settings
 - **System tray** integration — minimize to tray, balloon notifications on blocks
 - **Toast notifications** — non-intrusive block alerts
@@ -68,7 +68,7 @@ Rules are evaluated in priority order:
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -144,7 +144,7 @@ Heco_Firewall/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - **Windows 10/11** (x64)
@@ -189,7 +189,7 @@ cd Heco_Firewall/bin/x64/Release/net8.0-windows
 
 ---
 
-## 📖 Usage Guide
+## Usage Guide
 
 ### First Launch
 1. Run **as Administrator** (right-click → "Run as administrator")
@@ -241,7 +241,7 @@ cd Heco_Firewall/bin/x64/Release/net8.0-windows
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 Settings are stored in `%APPDATA%\Heco\settings.json`:
 
@@ -278,7 +278,7 @@ Firewall rules stored in `%APPDATA%\Heco\rules.json`.
 
 ---
 
-## 🛠️ Development
+## Development
 
 ### Building the Driver (HecoProtect.sys)
 The kernel driver is in `Heco.Protection.Driver/` and must be built separately with **Windows Driver Kit (WDK)**:
@@ -307,7 +307,7 @@ msbuild Heco.Protection.Driver.vcxproj /p:Configuration=Release /p:Platform=x64
 
 ---
 
-## 🙏 Acknowledgments & Credits
+## Acknowledgments & Credits
 
 ### MaxMind GeoLite2 Databases
 This project uses **GeoLite2 databases** from MaxMind for IP geolocation and ASN lookup.
@@ -342,7 +342,7 @@ Packet interception powered by **WinDivert** — a user-mode packet capture/dive
 
 ---
 
-## 📄 License
+## License
 
 **Heco Firewall** is licensed under the **MIT License** — see [LICENSE](LICENSE) for details.
 
@@ -353,7 +353,7 @@ Third-party components retain their original licenses:
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions welcome! Please:
 1. Fork the repository
@@ -370,7 +370,7 @@ Contributions welcome! Please:
 
 ---
 
-## ⚠️ Disclaimer
+## Disclaimer
 
 **Heco Firewall is provided "as is" without warranty of any kind.**  
 Network filtering operates at kernel level — misconfiguration can block legitimate traffic or cause system instability.  
@@ -379,11 +379,11 @@ The self-defense driver requires a valid certificate for production use (test-si
 
 ---
 
-## 📞 Support
+## Support
 
 - **Issues**: [GitHub Issues](https://github.com/your-org/Heco_Firewall/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/your-org/Heco_Firewall/discussions)
 
 ---
 
-*Made with ❤️ for Windows power users who want visibility and control over their network traffic.*
+*Made for Windows power users who want visibility and control over their network traffic.*

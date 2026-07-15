@@ -12,14 +12,14 @@
         </EventTrigger>
     </UserControl.Triggers>
 
-    <Grid>
+    <Grid Margin="0,0,20,0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Toolbar -->
+        <!-- Toolbar (always visible) -->
         <Border Grid.Row="0" Background="{StaticResource BrushBgCard}" BorderBrush="{StaticResource BrushBorder}"
                 BorderThickness="1" CornerRadius="6" Padding="8" Margin="0,0,0,8">
             <Grid>
@@ -36,13 +36,12 @@
                 </StackPanel>
                 <Grid Grid.Column="2" Width="220">
                     <TextBox x:Name="SearchBox" Text="{Binding Connections.SearchText, UpdateSourceTrigger=PropertyChanged}"
-                             Height="32"
-                             Tag="Search process, IP, port..."/>
+                             Height="32" Tag="Search process, IP, port..."/>
                 </Grid>
             </Grid>
         </Border>
 
-        <!-- Summary bar -->
+        <!-- Summary bar (always visible) -->
         <Border Grid.Row="1" Background="{StaticResource BrushBgCard}" BorderBrush="{StaticResource BrushBorder}"
                 BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,8">
             <StackPanel Orientation="Horizontal">
@@ -71,7 +70,7 @@
             </StackPanel>
         </Border>
 
-        <!-- DataGrid + DNS Cache -->
+        <!-- DataGrid + DNS Cache (scrollable area) -->
         <Grid Grid.Row="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
@@ -90,70 +89,73 @@
                               ItemsSource="{Binding Connections.ConnectionsView.View}"
                               SelectedItem="{Binding Connections.SelectedConnection}"
                               Background="Transparent" BorderThickness="0"
+                              AutoGenerateColumns="False"
+                              EnableRowVirtualization="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling"
                               ScrollViewer.HorizontalScrollBarVisibility="Auto"
                               ScrollViewer.VerticalScrollBarVisibility="Auto">
-                    <DataGrid.ContextMenu>
-                        <ContextMenu>
-                            <MenuItem Header="Inspect Process..." Click="InspectProcess_Click" />
-                            <Separator />
-                            <MenuItem Header="Block App Outbound" Click="BlockProcessOutbound_Click" />
-                            <MenuItem Header="Allow App Outbound" Click="AllowProcessOutbound_Click" />
-                        </ContextMenu>
-                    </DataGrid.ContextMenu>
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Proto" Binding="{Binding Protocol, Converter={StaticResource ProtocolText}}" Width="Auto" />
-                        <DataGridTemplateColumn Header="Local Socket" Width="Auto">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBlock VerticalAlignment="Center">
-                                        <Run Text="{Binding LocalAddress, Mode=OneWay}" />:<Run Text="{Binding LocalPort, Mode=OneWay}" />
-                                    </TextBlock>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="Remote Socket" Width="Auto">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBlock VerticalAlignment="Center">
-                                        <Run Text="{Binding RemoteAddress, Mode=OneWay}" />:<Run Text="{Binding RemotePort, Mode=OneWay}" />
-                                    </TextBlock>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="State" Width="Auto">
-                            <DataGridTextColumn.Binding>
-                                <Binding Path="TcpState" Converter="{StaticResource TcpStateText}" />
-                            </DataGridTextColumn.Binding>
-                        </DataGridTextColumn>
-                        <DataGridTextColumn Header="MAC" Binding="{Binding LocalMacAddress}" Width="Auto" />
-                        <DataGridTextColumn Header="Process" Binding="{Binding ProcessName}" Width="Auto" />
-                        <DataGridTextColumn Header="PID" Binding="{Binding ProcessId}" Width="Auto" />
-                        <DataGridTextColumn Header="Profile" Binding="{Binding ProfileName}" Width="Auto" />
-                        <DataGridTextColumn Header="Country" Binding="{Binding CountryCode}" Width="Auto" />
-                        <DataGridTextColumn Header="ASN" Binding="{Binding Asn}" Width="Auto" />
-                        <DataGridTextColumn Header="Host" Binding="{Binding RemoteHostName}" Width="Auto" />
-                        <DataGridTextColumn Header="Sent" Width="Auto">
-                            <DataGridTextColumn.Binding>
-                                <Binding Path="BytesSent" Converter="{StaticResource ByteFormat}" />
-                            </DataGridTextColumn.Binding>
-                        </DataGridTextColumn>
-                        <DataGridTextColumn Header="Recv" Width="Auto">
-                            <DataGridTextColumn.Binding>
-                                <Binding Path="BytesReceived" Converter="{StaticResource ByteFormat}" />
-                            </DataGridTextColumn.Binding>
-                        </DataGridTextColumn>
-                        <DataGridTextColumn Header="▲ KB/s" Width="Auto">
-                            <DataGridTextColumn.Binding>
-                                <Binding Path="SentKbps" StringFormat="{}{0:F1}" />
-                            </DataGridTextColumn.Binding>
-                        </DataGridTextColumn>
-                        <DataGridTextColumn Header="▼ KB/s" Width="Auto">
-                            <DataGridTextColumn.Binding>
-                                <Binding Path="ReceivedKbps" StringFormat="{}{0:F1}" />
-                            </DataGridTextColumn.Binding>
-                        </DataGridTextColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Inspect Process..." Click="InspectProcess_Click" />
+                                <Separator />
+                                <MenuItem Header="Block App Outbound" Click="BlockProcessOutbound_Click" />
+                                <MenuItem Header="Allow App Outbound" Click="AllowProcessOutbound_Click" />
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Proto" Binding="{Binding Protocol, Converter={StaticResource ProtocolText}}" Width="Auto" />
+                            <DataGridTemplateColumn Header="Local Socket" Width="Auto">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock VerticalAlignment="Center">
+                                            <Run Text="{Binding LocalAddress, Mode=OneWay}" />:<Run Text="{Binding LocalPort, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Remote Socket" Width="Auto">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock VerticalAlignment="Center">
+                                            <Run Text="{Binding RemoteAddress, Mode=OneWay}" />:<Run Text="{Binding RemotePort, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="State" Width="Auto">
+                                <DataGridTextColumn.Binding>
+                                    <Binding Path="TcpState" Converter="{StaticResource TcpStateText}" />
+                                </DataGridTextColumn.Binding>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="MAC" Binding="{Binding LocalMacAddress}" Width="Auto" />
+                            <DataGridTextColumn Header="Process" Binding="{Binding ProcessName}" Width="Auto" />
+                            <DataGridTextColumn Header="PID" Binding="{Binding ProcessId}" Width="Auto" />
+                            <DataGridTextColumn Header="Profile" Binding="{Binding ProfileName}" Width="Auto" />
+                            <DataGridTextColumn Header="Country" Binding="{Binding CountryCode}" Width="Auto" />
+                            <DataGridTextColumn Header="ASN" Binding="{Binding Asn}" Width="Auto" />
+                            <DataGridTextColumn Header="Host" Binding="{Binding RemoteHostName}" Width="Auto" />
+                            <DataGridTextColumn Header="Sent" Width="Auto">
+                                <DataGridTextColumn.Binding>
+                                    <Binding Path="BytesSent" Converter="{StaticResource ByteFormat}" />
+                                </DataGridTextColumn.Binding>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Recv" Width="Auto">
+                                <DataGridTextColumn.Binding>
+                                    <Binding Path="BytesReceived" Converter="{StaticResource ByteFormat}" />
+                                </DataGridTextColumn.Binding>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="▲ KB/s" Width="Auto">
+                                <DataGridTextColumn.Binding>
+                                    <Binding Path="SentKbps" StringFormat="{}{0:F1}" />
+                                </DataGridTextColumn.Binding>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="▼ KB/s" Width="Auto">
+                                <DataGridTextColumn.Binding>
+                                    <Binding Path="ReceivedKbps" StringFormat="{}{0:F1}" />
+                                </DataGridTextColumn.Binding>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
                 </Grid>
             </Border>
 

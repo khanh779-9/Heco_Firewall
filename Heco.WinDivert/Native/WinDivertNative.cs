@@ -6,7 +6,7 @@ namespace Heco.WinDivert.Native;
 
 public static class WinDivertNative
 {
-    // ── DLL loading ────────────────────────────────────────────────
+    //  DLL loading ─
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern nint LoadLibrary(string lpFileName);
@@ -24,7 +24,7 @@ public static class WinDivertNative
         catch { }
     }
 
-    // ── Core API ───────────────────────────────────────────────────
+    //  Core API ─
 
     [DllImport("WinDivert.dll", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
     public static extern nint WinDivertOpen(
@@ -83,7 +83,7 @@ public static class WinDivertNative
         int addrLen,
         nint lpOverlapped);
 
-    // ── Params ─────────────────────────────────────────────────────
+    //  Params ─
 
     [DllImport("WinDivert.dll", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -93,7 +93,7 @@ public static class WinDivertNative
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool WinDivertGetParam(nint handle, uint param, out ulong pValue);
 
-    // ── Helper: Checksums ──────────────────────────────────────────
+    //  Helper: Checksums ─
 
     [DllImport("WinDivert.dll", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -103,7 +103,7 @@ public static class WinDivertNative
         ref WINDIVERT_ADDRESS pAddr,
         ulong flags);
 
-    // ── Helper: Parse packet ───────────────────────────────────────
+    //  Helper: Parse packet ─
 
     [DllImport("WinDivert.dll", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -122,7 +122,7 @@ public static class WinDivertNative
         out byte* ppNext,
         out int pNextLen);
 
-    // ── Helper: Hash ───────────────────────────────────────────────
+    //  Helper: Hash 
 
     [DllImport("WinDivert.dll", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
     public static extern ulong WinDivertHelperHashPacket(
@@ -130,7 +130,7 @@ public static class WinDivertNative
         uint packetLen,
         ulong seed);
 
-    // ── Helper: Decrement TTL ──────────────────────────────────────
+    //  Helper: Decrement TTL 
 
     [DllImport("WinDivert.dll", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -138,7 +138,7 @@ public static class WinDivertNative
         byte[] pPacket,
         uint packetLen);
 
-    // ── Helper: Filter compile ─────────────────────────────────────
+    //  Helper: Filter compile ─
 
     [DllImport("WinDivert.dll", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -150,7 +150,7 @@ public static class WinDivertNative
         out IntPtr errorStr,
         out int errorPos);
 
-    // ── Helper: Filter eval ────────────────────────────────────────
+    //  Helper: Filter eval 
 
     [DllImport("WinDivert.dll", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -160,7 +160,7 @@ public static class WinDivertNative
         uint packetLen,
         ref WINDIVERT_ADDRESS pAddr);
 
-    // ── Helper: Filter format ──────────────────────────────────────
+    //  Helper: Filter format 
 
     [DllImport("WinDivert.dll", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -170,7 +170,7 @@ public static class WinDivertNative
         IntPtr buffer,
         int bufLen);
 
-    // ── Helper: Address parsing ────────────────────────────────────
+    //  Helper: Address parsing 
 
     [DllImport("WinDivert.dll", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -184,7 +184,7 @@ public static class WinDivertNative
         [MarshalAs(UnmanagedType.LPStr)] string addrStr,
         uint* pAddr);
 
-    // ── Helper: Address formatting ─────────────────────────────────
+    //  Helper: Address formatting 
 
     [DllImport("WinDivert.dll", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -200,7 +200,7 @@ public static class WinDivertNative
         IntPtr buffer,
         uint bufLen);
 
-    // ── Helper: Byte ordering ──────────────────────────────────────
+    //  Helper: Byte ordering 
 
     [DllImport("WinDivert.dll", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort WinDivertHelperNtohs(ushort x);
@@ -230,7 +230,7 @@ public static class WinDivertNative
         uint* inAddr,
         uint* outAddr);
 
-    // ── Managed wrappers ──────────────────────────────────────────
+    //  Managed wrappers ─
 
     public static unsafe byte[] CompileFilter(string filter, WinDivertLayer layer)
     {

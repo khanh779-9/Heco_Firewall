@@ -383,7 +383,7 @@ public sealed class BlocklistManager : IBlocklistManager, IDisposable
         return true;
     }
 
-    // ── Internal ─────────────────────────────────────────────────
+    //  Internal 
 
     private void LoadFileBlocklist(Blocklist blocklist)
     {

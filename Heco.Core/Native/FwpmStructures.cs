@@ -5,7 +5,7 @@ namespace Heco.Core.Native;
 
 internal static class WfpNativeTypes
 {
-    // ── Session ─────────────────────────────────────────────────
+    //  Session 
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWPM_SESSION0
@@ -20,7 +20,7 @@ internal static class WfpNativeTypes
         public bool kernelMode;
     }
 
-    // ── Display Data ────────────────────────────────────────────
+    //  Display Data ─
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWPM_DISPLAY_DATA0
@@ -29,7 +29,7 @@ internal static class WfpNativeTypes
         [MarshalAs(UnmanagedType.LPWStr)] public string? description;
     }
 
-    // ── Provider ────────────────────────────────────────────────
+    //  Provider ─
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWPM_PROVIDER0
@@ -41,7 +41,7 @@ internal static class WfpNativeTypes
         [MarshalAs(UnmanagedType.LPWStr)] public string? serviceName;
     }
 
-    // ── SubLayer ────────────────────────────────────────────────
+    //  SubLayer ─
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWPM_SUBLAYER0
@@ -54,7 +54,7 @@ internal static class WfpNativeTypes
         public ushort weight;
     }
 
-    // ── Filter ──────────────────────────────────────────────────
+    //  Filter 
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWPM_FILTER0
@@ -76,7 +76,7 @@ internal static class WfpNativeTypes
         public FWP_VALUE0 effectiveWeight;
     }
 
-    // ── Filter Condition ────────────────────────────────────────
+    //  Filter Condition 
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWPM_FILTER_CONDITION0
@@ -86,7 +86,7 @@ internal static class WfpNativeTypes
         public FWP_CONDITION_VALUE0 conditionValue;
     }
 
-    // ── Action ──────────────────────────────────────────────────
+    //  Action 
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWPM_ACTION0
@@ -95,7 +95,7 @@ internal static class WfpNativeTypes
         public Guid calloutKey;
     }
 
-    // ── Value ───────────────────────────────────────────────────
+    //  Value ─
 
     [StructLayout(LayoutKind.Explicit)]
     internal struct FWP_VALUE_UNION
@@ -136,7 +136,7 @@ internal static class WfpNativeTypes
         public FWP_VALUE_UNION value;
     }
 
-    // ── Byte Blob ────────────────────────────────────────────────
+    //  Byte Blob ─
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWP_BYTE_BLOB
@@ -145,7 +145,7 @@ internal static class WfpNativeTypes
         public nint data;
     }
 
-    // ── Address / Mask ─────────────────────────────────────────
+    //  Address / Mask 
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWP_V4_ADDR_AND_MASK
@@ -169,7 +169,7 @@ internal static class WfpNativeTypes
         public byte[] data;
     }
 
-    // ── Callout ─────────────────────────────────────────────────
+    //  Callout 
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWPM_CALLOUT0
@@ -185,7 +185,7 @@ internal static class WfpNativeTypes
         public nint flowDeleteFn;
     }
 
-    // ── Provider Context ────────────────────────────────────────
+    //  Provider Context 
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWPM_PROVIDER_CONTEXT0
@@ -198,7 +198,7 @@ internal static class WfpNativeTypes
         public FWP_VALUE0 data;
     }
 
-    // ── Layer ───────────────────────────────────────────────────
+    //  Layer ─
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWPM_LAYER0
@@ -211,7 +211,7 @@ internal static class WfpNativeTypes
         public uint numFields;
     }
 
-    // ── Network Event ───────────────────────────────────────────
+    //  Network Event 
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWPM_NET_EVENT_SUBSCRIPTION0
@@ -220,7 +220,7 @@ internal static class WfpNativeTypes
         public nint enumTemplate;
     }
 
-    // ── System Ports ────────────────────────────────────────────
+    //  System Ports ─
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWPM_SYSTEM_PORTS_BY_TYPE0
@@ -230,7 +230,7 @@ internal static class WfpNativeTypes
         public nint ports;
     }
 
-    // ── Tunnel / IPsec ─────────────────────────────────────────
+    //  Tunnel / IPsec 
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWPM_TUNNEL_POLICY0

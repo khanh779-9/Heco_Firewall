@@ -3,7 +3,7 @@ using Heco.Common.Models;
 
 namespace Heco.Core.Engine;
 
-// ── Partial: high-level rule management ─────────────────────────
+//  Partial: high-level rule management ─
 public partial class WfpEngine
 {
     /// <summary>Add a single rule to the WFP engine.</summary>

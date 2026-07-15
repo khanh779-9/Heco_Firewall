@@ -54,7 +54,7 @@ internal sealed class BlocklistsViewModel : ObservableObject
         Refresh();
     }
 
-    // ── Properties ───────────────────────────────────────────────
+    //  Properties 
 
     public IReadOnlyList<Blocklist> Blocklists => _blocklistManager.Blocklists;
 
@@ -88,7 +88,7 @@ internal sealed class BlocklistsViewModel : ObservableObject
     public int OnlineCount => Blocklists.Count(b => b.Source == BlocklistSource.OnlineUrl);
     public int OfflineCount => Blocklists.Count(b => b.Source == BlocklistSource.OfflineFile);
 
-    // ── Add-editor Properties ────────────────────────────────────
+    //  Add-editor Properties 
 
     public bool IsAdding
     {
@@ -125,7 +125,7 @@ internal sealed class BlocklistsViewModel : ObservableObject
     public ObservableCollection<BlocklistContentType> AvailableContentTypes { get; } = new(
         [BlocklistContentType.Domain, BlocklistContentType.IP, BlocklistContentType.Wildcard, BlocklistContentType.Hosts]);
 
-    // ── Edit-editor Properties ───────────────────────────────────
+    //  Edit-editor Properties 
 
     public bool IsEditing
     {
@@ -161,7 +161,7 @@ internal sealed class BlocklistsViewModel : ObservableObject
         set => SetProperty(ref _editIsEnabled, value);
     }
 
-    // ── Commands ─────────────────────────────────────────────────
+    //  Commands 
 
     public ICommand UpdateAllCommand { get; }
     public ICommand UpdateSelectedCommand { get; }
@@ -176,7 +176,7 @@ internal sealed class BlocklistsViewModel : ObservableObject
     public ICommand SaveEditCommand { get; }
     public ICommand CancelEditCommand { get; }
 
-    // ── Methods ───────────────────────────────────────────────────
+    //  Methods ─
 
     public void Refresh()
     {

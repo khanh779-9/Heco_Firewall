@@ -72,12 +72,12 @@ public sealed class WinDivertFilter : IDisposable
     // Fast cache for non-TCP/UDP (ICMP, GRE, ESP, etc.): "Proto:SrcIP:DstIP" -> VerdictDecision
     private readonly ConcurrentDictionary<string, VerdictDecision> _nonTcpVerdictCache = new();
 
-    // ── PID Resolution Cache (TTL: 2 seconds) ────────────────────────
+    //  PID Resolution Cache (TTL: 2 seconds) 
     private static readonly ConcurrentDictionary<ushort, (uint Pid, long Timestamp)> _tcpPidCache = new();
     private static readonly ConcurrentDictionary<ushort, (uint Pid, long Timestamp)> _udpPidCache = new();
     private const long PidCacheTtlTicks = 2 * TimeSpan.TicksPerSecond; // 2 seconds
 
-    // ── Shared unmanaged buffer for PID lookups ────────────────────
+    //  Shared unmanaged buffer for PID lookups 
     private static IntPtr _sharedPidBuffer = IntPtr.Zero;
     private static int _sharedPidBufferSize = 0;
     private static readonly object _pidBufferLock = new();
@@ -404,7 +404,7 @@ public sealed class WinDivertFilter : IDisposable
         }
     }
 
-    // ── IP Helper Lookup ────────────────────────────────────────
+    //  IP Helper Lookup 
 
     private static unsafe uint FindTcpPid(ushort localPort)
     {

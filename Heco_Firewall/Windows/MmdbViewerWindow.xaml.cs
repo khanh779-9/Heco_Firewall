@@ -13,6 +13,7 @@ namespace Heco_Firewall.Windows;
 public partial class MmdbViewerWindow : Window
 {
     private Reader? _reader;
+    private IReadOnlyList<KeyValuePair<string, string>>? _lastMetadata;
 
     public MmdbViewerWindow()
     {
@@ -51,6 +52,7 @@ public partial class MmdbViewerWindow : Window
         {
             _reader?.Dispose();
             _reader = null;
+            _lastMetadata = null;
 
             if (!File.Exists(path))
             {
@@ -66,8 +68,24 @@ public partial class MmdbViewerWindow : Window
             _reader = reader;
 
             TxtDbStatus.Text = $"Loaded: {info.Name} ({FormatSize(info.Length)})";
-            ResultsCard.Visibility = Visibility.Collapsed;
+
+            // Build metadata once
+            var meta = new List<KeyValuePair<string, string>>
+            {
+                new("Database Type", reader.Metadata.DatabaseType),
+                new("IP Version", reader.Metadata.IPVersion.ToString()),
+                new("Binary Format", $"{reader.Metadata.BinaryFormatMajorVersion}.{reader.Metadata.BinaryFormatMinorVersion}"),
+                new("Build Date", reader.Metadata.BuildDate.ToString("yyyy-MM-dd HH:mm")),
+            };
+            if (reader.Metadata.Description is { Count: > 0 } desc && desc.TryGetValue("en", out var enDesc) && !string.IsNullOrEmpty(enDesc))
+                meta.Add(new("Description", enDesc));
+
+            _lastMetadata = meta;
             ErrorCard.Visibility = Visibility.Collapsed;
+
+            // Show metadata + auto-lookup a sample IP
+            TxtIpAddress.Text = "8.8.8.8";
+            await DoShowResultsAsync("8.8.8.8");
         }
         catch (Exception ex)
         {
@@ -93,9 +111,6 @@ public partial class MmdbViewerWindow : Window
 
     private async Task LookupAsync()
     {
-        ResultsCard.Visibility = Visibility.Collapsed;
-        ErrorCard.Visibility = Visibility.Collapsed;
-
         var path = TxtDatabasePath.Text.Trim();
         if (string.IsNullOrEmpty(path))
         {
@@ -128,19 +143,7 @@ public partial class MmdbViewerWindow : Window
 
         try
         {
-            Dictionary<string, object>? data = await Task.Run(() =>
-                _reader!.Find<Dictionary<string, object>>(address));
-
-            if (data is null || data.Count == 0)
-            {
-                ShowError("No data found for this IP address in the database.");
-                return;
-            }
-
-            var flat = FlattenDictionary(data);
-            ResultsList.ItemsSource = flat.Select(kv => new KeyValuePair<string, string>(kv.Key, kv.Value ?? "(null)"));
-            ResultsCard.Visibility = Visibility.Visible;
-            TxtDbStatus.Text = "";
+            await DoShowResultsAsync(ipText);
         }
         catch (Exception ex)
         {
@@ -150,6 +153,45 @@ public partial class MmdbViewerWindow : Window
         {
             LoadingOverlay.Visibility = Visibility.Collapsed;
         }
+    }
+
+    private async Task DoShowResultsAsync(string ipText)
+    {
+        if (_reader == null || !IPAddress.TryParse(ipText, out var address)) return;
+
+        Dictionary<string, object>? data = await Task.Run(() =>
+            _reader.Find<Dictionary<string, object>>(address));
+
+        var results = new List<KeyValuePair<string, string>>();
+
+        // Header row
+        results.Add(new("Lookup IP", ipText));
+        results.Add(new("", ""));
+
+        // Database metadata
+        if (_lastMetadata != null)
+        {
+            results.Add(new(" Database Info ", ""));
+            results.AddRange(_lastMetadata);
+            results.Add(new("", ""));
+        }
+
+        // Lookup data
+        if (data != null && data.Count > 0)
+        {
+            results.Add(new(" Lookup Result ", ""));
+            results.AddRange(FlattenDictionary(data).Select(
+                kv => new KeyValuePair<string, string>(kv.Key, kv.Value ?? "(null)")));
+        }
+        else
+        {
+            results.Add(new("Result", "No data found for this IP address."));
+        }
+
+        ResultsList.ItemsSource = results;
+        ResultsCard.Visibility = Visibility.Visible;
+        ErrorCard.Visibility = Visibility.Collapsed;
+        TxtDbStatus.Text = "";
     }
 
     private static List<KeyValuePair<string, string>> FlattenDictionary(Dictionary<string, object> data, string prefix = "")

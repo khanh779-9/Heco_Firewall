@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -10,6 +11,7 @@ namespace Heco.Surveillance.Sniffer;
 ///   Captures raw IP packets using a promiscuous-mode raw socket.
 ///   Requires Administrator privileges.
 /// </summary>
+[SupportedOSPlatform("windows")]
 public sealed class PacketSniffer : IDisposable
 {
     private Socket? _socket;

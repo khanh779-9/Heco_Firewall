@@ -38,7 +38,7 @@ public sealed unsafe class WinDivertParseResult
         NextLen = nextLen;
     }
 
-    // ── Convenience: L4 fields thông qua V4-> hoặc V6-> ─────────────
+    //  Convenience: L4 fields thông qua V4-> hoặc V6-> 
     public ushort SrcPort => V4 != null ? V4->SrcPort : V6 != null ? V6->SrcPort : (ushort)0;
     public ushort DstPort => V4 != null ? V4->DstPort : V6 != null ? V6->DstPort : (ushort)0;
 }

@@ -27,11 +27,12 @@
         </DataTemplate>
     </UserControl.Resources>
 
+    <ScrollViewer Margin="0,0,20,0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
     <StackPanel>
         <!-- Status Shield -->
         <Border Background="{StaticResource BrushBgCard}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
                 CornerRadius="10" Padding="24,20" Margin="0,0,0,12">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                 <!-- Shield icon: green when active, gray when disabled, red when error -->
                 <Viewbox Width="48" Height="48" Margin="0,0,16,0">
                     <Canvas Width="24" Height="28">
@@ -261,4 +262,5 @@
             </Border>
         </Grid>
     </StackPanel>
+    </ScrollViewer>
 </UserControl>

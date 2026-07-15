@@ -5,7 +5,7 @@ namespace Heco.WinDivert.Native;
 [StructLayout(LayoutKind.Explicit)]
 public unsafe struct V6Header
 {
-    // ── IPv6 fixed header (40 bytes) ────────────
+    //  IPv6 fixed header (40 bytes) ─
     [FieldOffset(0)]  public uint VersionAndFlow;
     [FieldOffset(4)]  public ushort PayloadLength;
     [FieldOffset(6)]  public Protocol NextHdr;
@@ -15,11 +15,11 @@ public unsafe struct V6Header
 
     public readonly byte Version => (byte)(VersionAndFlow >> 28);
 
-    // ── TCP / UDP (offset 40) ───
+    //  TCP / UDP (offset 40) ─
     [FieldOffset(40)] public ushort SrcPort;
     [FieldOffset(42)] public ushort DstPort;
 
-    // ── TCP (offset 44) ─────────
+    //  TCP (offset 44) 
     [FieldOffset(44)] public uint TcpSeqNum;
     [FieldOffset(48)] public uint TcpAckNum;
     [FieldOffset(52)] public ushort TcpReservedAndFlags;
@@ -29,13 +29,13 @@ public unsafe struct V6Header
     public readonly byte TcpDataOffset => (byte)((TcpReservedAndFlags >> 12) & 0x0F);
     public readonly byte TcpFlags => (byte)(TcpReservedAndFlags & 0x00FF);
 
-    // ── ICMPv6 (offset 40) ──────
+    //  ICMPv6 (offset 40) 
     [FieldOffset(40)] public byte IcmpType;
     [FieldOffset(41)] public byte IcmpCode;
     [FieldOffset(42)] public ushort IcmpChecksum;
     [FieldOffset(44)] public uint IcmpBody;
 
-    // ── IPv6 helpers ────
+    //  IPv6 helpers 
     public readonly byte TrafficClass => (byte)(VersionAndFlow >> 20);
     public readonly uint FlowLabel => VersionAndFlow & 0x000FFFFF;
 }

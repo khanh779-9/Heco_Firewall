@@ -43,7 +43,7 @@ public sealed class ProcessMonitor : IProcessMonitor
         _cache.Clear();
     }
 
-    // ── Cache management ──────────────────────────────────────────
+    //  Cache management ─
 
     private bool TryGetFromCache(uint pid, out ProcessInfo? info)
     {
@@ -93,7 +93,7 @@ public sealed class ProcessMonitor : IProcessMonitor
         }
     }
 
-    // ── Resolution strategies (P/Invoke only) ─────────────────────
+    //  Resolution strategies (P/Invoke only) ─
 
     private ProcessInfo? ResolveProcessInfo(uint pid)
     {
@@ -155,7 +155,7 @@ public sealed class ProcessMonitor : IProcessMonitor
         }
     }
 
-    // ── P/Invoke strategy ─────────────────────────────────────────
+    //  P/Invoke strategy 
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, uint dwProcessId);
@@ -275,7 +275,7 @@ public sealed class ProcessMonitor : IProcessMonitor
         }
     }
 
-    // ── Service detection via Service Control Manager ─────────────
+    //  Service detection via Service Control Manager 
 
     [DllImport("advapi32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     private static extern IntPtr OpenSCManager(string? lpMachineName, string? lpDatabaseName, uint dwDesiredAccess);
@@ -359,7 +359,7 @@ public sealed class ProcessMonitor : IProcessMonitor
         return null;
     }
 
-    // ── Windows Store detection ───────────────────────────────────
+    //  Windows Store detection 
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern int GetPackageFamilyName(IntPtr hProcess, ref int packageFamilyNameLength, StringBuilder packageFamilyName);
@@ -389,7 +389,7 @@ public sealed class ProcessMonitor : IProcessMonitor
         return (false, null);
     }
 
-    // ── Parent Process ID ─────────────────────────────────────────
+    //  Parent Process ID 
 
     private static uint GetParentProcessId(uint pid)
     {

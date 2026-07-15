@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Runtime.Versioning;
 using System.Windows;
 using Hardcodet.Wpf.TaskbarNotification;
 using Heco_Firewall.ViewModels;
@@ -16,6 +17,7 @@ namespace Heco_Firewall.Tray;
 ///   - Gray shield   = disabled (protection OFF)
 ///   - Red shield    = error / WinDivert unavailable
 /// </summary>
+[SupportedOSPlatform("windows")]
 internal sealed class TrayService : IDisposable
 {
     private readonly MainViewModel _mainVm;

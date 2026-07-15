@@ -30,7 +30,7 @@ internal sealed class ActivityViewModel : ObservableObject
         UpdateStatus();
     }
 
-    // ── Properties ───────────────────────────────────────────────
+    //  Properties 
 
     public IReadOnlyList<BlockEventInfo> BlockEvents => _eventWatcher.RecentBlockEvents;
     public IReadOnlyList<DnsQueryEventInfo> DnsQueries => _eventWatcher.RecentDnsQueries;
@@ -52,14 +52,14 @@ internal sealed class ActivityViewModel : ObservableObject
     public int BlockEventCount => BlockEvents.Count;
     public int DnsQueryCount => DnsQueries.Count;
 
-    // ── Commands ─────────────────────────────────────────────────
+    //  Commands 
 
     public ICommand StartCommand { get; }
     public ICommand StopCommand { get; }
     public ICommand ClearCommand { get; }
     public ICommand RefreshCommand { get; }
 
-    // ── Methods ───────────────────────────────────────────────────
+    //  Methods ─
 
     public void Start()
     {

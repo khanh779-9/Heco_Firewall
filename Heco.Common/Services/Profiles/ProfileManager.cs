@@ -33,7 +33,7 @@ public sealed class ProfileManager : IProfileManager
         _settingsService = settingsService;
     }
 
-    // ── Matching ─────────────────────────────────────────────────
+    //  Matching 
 
     public Profile? MatchConnection(ConnectionEntry connection)
     {
@@ -92,7 +92,7 @@ public sealed class ProfileManager : IProfileManager
         return profile;
     }
 
-    // ── CRUD ─────────────────────────────────────────────────────
+    //  CRUD ─
 
     public void SaveProfile(Profile profile)
     {
@@ -128,7 +128,7 @@ public sealed class ProfileManager : IProfileManager
         return true;
     }
 
-    // ── Persistence ──────────────────────────────────────────────
+    //  Persistence ─
 
     public void LoadProfiles()
     {
@@ -170,7 +170,7 @@ public sealed class ProfileManager : IProfileManager
         _settingsService.Save();
     }
 
-    // ── Special profiles ─────────────────────────────────────────
+    //  Special profiles 
 
     private void EnsureSpecialProfiles()
     {
@@ -217,7 +217,7 @@ public sealed class ProfileManager : IProfileManager
         }
     }
 
-    // ── Helpers ──────────────────────────────────────────────────
+    //  Helpers 
 
     private static bool IsSystemProcess(uint pid)
     {

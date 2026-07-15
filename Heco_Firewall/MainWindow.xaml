@@ -139,7 +139,7 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <!-- ── Title Bar ────────────────────── -->
+                <!--  Title Bar  -->
                 <Border Grid.Row="0" Background="{StaticResource BrushBgMid}"
                         BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1"
                         CornerRadius="0,7,0,0" Padding="20,12">
@@ -194,14 +194,14 @@
                     </Grid>
                 </Border>
 
-                <!-- ── Warning Banner ────────────────── -->
+                <!--  Warning Banner  -->
                 <Border Grid.Row="1" Background="#FFF5A623" Padding="16,4"
                         Visibility="{Binding HasWarning, Converter={StaticResource BoolToVis}}">
                     <TextBlock Text="{Binding WarningText}" Foreground="#332200" FontSize="12"
                                TextWrapping="Wrap" />
                 </Border>
 
-                <!-- ── Page Content ──────────────────── -->
+                <!--  Page Content  -->
                 <Grid Grid.Row="2">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -225,7 +225,7 @@
                     </Grid>
                 </Grid>
 
-                <!-- ── Status Bar ────────────────────── -->
+                <!--  Status Bar  -->
                 <Border Grid.Row="3" Background="{StaticResource BrushBgMid}"
                         BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0"
                         CornerRadius="0,0,7,0" Padding="20,6" Margin="0,8,0,0">

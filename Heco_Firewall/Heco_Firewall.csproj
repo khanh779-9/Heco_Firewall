@@ -18,10 +18,10 @@
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="..\Heco.Protection.Driver\build\Release\x64\HecoProtect.sys" Link="Drivers\x64\HecoProtect.sys">
+    <Content Include="..\Heco.Protection.Driver\build\Release\x64\HecoProtect.sys" Link="Drivers\x64\HecoProtect.sys" Condition="Exists('..\Heco.Protection.Driver\build\Release\x64\HecoProtect.sys')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="..\Heco.Protection.Driver\build\Release\Win32\HecoProtect.sys" Link="Drivers\x86\HecoProtect.sys">
+    <Content Include="..\Heco.Protection.Driver\build\Release\Win32\HecoProtect.sys" Link="Drivers\x86\HecoProtect.sys" Condition="Exists('..\Heco.Protection.Driver\build\Release\Win32\HecoProtect.sys')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Copilot_20260714_223228.ico" />

@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using System.Security.Principal;
 using System.Windows;
 using Heco.Common.Services.Notifications;
@@ -9,6 +10,7 @@ namespace Heco_Firewall;
 /// <summary>
 ///   Application entry point. Manages the MainWindow and system tray.
 /// </summary>
+[SupportedOSPlatform("windows")]
 public partial class App : Application
 {
     private TrayService? _trayService;
