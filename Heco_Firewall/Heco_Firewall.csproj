@@ -11,17 +11,23 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NoWarn>1591;0067</NoWarn>
-    <Platforms>AnyCPU;x86</Platforms>
+    <Platforms>AnyCPU;x64;x86</Platforms>
     <ApplicationIcon>Copilot_20260714_223228.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="..\Heco.Protection.Driver\build\Release\x64\HecoProtect.sys" Link="Drivers\x64\HecoProtect.sys" Condition="Exists('..\Heco.Protection.Driver\build\Release\x64\HecoProtect.sys')">
+    <Content Include="..\Heco.WinDivert\Drivers\x64\WinDivert.dll" Link="Drivers\x64\WinDivert.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="..\Heco.Protection.Driver\build\Release\Win32\HecoProtect.sys" Link="Drivers\x86\HecoProtect.sys" Condition="Exists('..\Heco.Protection.Driver\build\Release\Win32\HecoProtect.sys')">
+    <Content Include="..\Heco.WinDivert\Drivers\x64\WinDivert64.sys" Link="Drivers\x64\WinDivert64.sys">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Heco.WinDivert\Drivers\x86\WinDivert.dll" Link="Drivers\x86\WinDivert.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Heco.WinDivert\Drivers\x86\WinDivert32.sys" Link="Drivers\x86\WinDivert32.sys">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Copilot_20260714_223228.ico" />

@@ -67,8 +67,6 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _trayService?.Dispose();
-        if (MainWindow?.DataContext is MainViewModel vm)
-            vm.Cleanup();
         base.OnExit(e);
     }
 }

@@ -6,10 +6,11 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Heco.WinDivert.Dns;
-using Heco.WinDivert.Native;
-using static Heco.WinDivert.Native.WinDivertLayer;
-using static Heco.WinDivert.Native.WinDivertFlag;
-using static Heco.WinDivert.Native.WinDivertStructs;
+using Heco.WinDivert.Structs;
+using Heco.WinDivert.Interop;
+using static Heco.WinDivert.Structs.WinDivertLayer;
+using static Heco.WinDivert.Structs.WinDivertFlag;
+
 
 namespace Heco.WinDivert.Filtering;
 

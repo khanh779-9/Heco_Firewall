@@ -106,13 +106,6 @@ public sealed class SettingsApplication : SettingsBase
         set => SetProperty(ref _dnsOverHttpsProvider, value);
     }
 
-    private bool _enableSelfDefense;
-    public bool EnableSelfDefense
-    {
-        get => _enableSelfDefense;
-        set => SetProperty(ref _enableSelfDefense, value);
-    }
-
     private bool _firewallActive;
     public bool FirewallActive
     {
@@ -120,12 +113,6 @@ public sealed class SettingsApplication : SettingsBase
         set => SetProperty(ref _firewallActive, value);
     }
 
-    private int _selfDefenseLevel = 2; // Standard
-    public int SelfDefenseLevel
-    {
-        get => _selfDefenseLevel;
-        set => SetProperty(ref _selfDefenseLevel, value);
-    }
 }
 
 /// <summary>

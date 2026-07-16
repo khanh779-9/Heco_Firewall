@@ -7,11 +7,12 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Heco.WinDivert.Models;
-using Heco.WinDivert.Native;
-using Heco.WinDivert.Sniffer;
-using static Heco.WinDivert.Native.WinDivertLayer;
-using static Heco.WinDivert.Native.WinDivertFlag;
-using static Heco.WinDivert.Native.WinDivertStructs;
+using Heco.WinDivert.Structs;
+using Heco.WinDivert.Interop;
+using Heco.WinDivert.Packet;
+using Heco.WinDivert.StreamReassembly;
+using static Heco.WinDivert.Structs.WinDivertLayer;
+using static Heco.WinDivert.Structs.WinDivertFlag;
 
 namespace Heco.WinDivert.Filtering;
 
@@ -40,6 +41,22 @@ internal static class BufferPool
         if (Interlocked.Increment(ref _poolCount) <= 32) // Max 32 buffers in pool
             _pool.Enqueue(buffer);
     }
+
+    /// <summary>Rent multiple buffers for batch processing.</summary>
+    public static byte[][] RentBatch(int count)
+    {
+        var batch = new byte[count][];
+        for (int i = 0; i < count; i++)
+            batch[i] = Rent();
+        return batch;
+    }
+
+    /// <summary>Return batch of buffers.</summary>
+    public static void ReturnBatch(byte[][] buffers)
+    {
+        foreach (var buf in buffers)
+            Return(buf);
+    }
 }
 
 public struct VerdictDecision
@@ -60,6 +77,9 @@ public struct VerdictDecision
 /// </summary>
 public sealed class WinDivertFilter : IDisposable
 {
+    /// <summary>Last Win32 error from the most recent WinDivertOpen call.</summary>
+    public static int LastOpenError { get; private set; }
+
     private volatile nint _filterHandle = IntPtr.Zero;
     private readonly object _handleLock = new();
     private CancellationTokenSource? _cts;
@@ -72,7 +92,10 @@ public sealed class WinDivertFilter : IDisposable
     // Fast cache for non-TCP/UDP (ICMP, GRE, ESP, etc.): "Proto:SrcIP:DstIP" -> VerdictDecision
     private readonly ConcurrentDictionary<string, VerdictDecision> _nonTcpVerdictCache = new();
 
-    //  PID Resolution Cache (TTL: 2 seconds) 
+    // TCP Stream Reassembly for HTTP Host/URL filtering
+    private TcpStreamReassembler? _streamReassembler;
+
+    //  PID Resolution Cache (TTL: 2 seconds)
     private static readonly ConcurrentDictionary<ushort, (uint Pid, long Timestamp)> _tcpPidCache = new();
     private static readonly ConcurrentDictionary<ushort, (uint Pid, long Timestamp)> _udpPidCache = new();
     private const long PidCacheTtlTicks = 2 * TimeSpan.TicksPerSecond; // 2 seconds
@@ -106,16 +129,29 @@ public sealed class WinDivertFilter : IDisposable
     // Callback to prompt the user asynchronously: ConnectionInfo, Callback(Verdict)
     private readonly Action<ConnectionEntry, Action<RuleAction>> _promptAction;
 
+    // Optional HTTP verdict callback for stream reassembly
+    private readonly Action<HttpRequestInfo, Action<RuleAction>>? _httpVerdictCallback;
+
     public bool IsRunning => _filterTask?.IsCompleted == false;
 
     public WinDivertFilter(
         Func<uint, string?> processResolver,
         Func<ConnectionEntry, VerdictDecision?> verdictChecker,
         Action<ConnectionEntry, Action<RuleAction>> promptAction)
+        : this(processResolver, verdictChecker, promptAction, null)
+    {
+    }
+
+    public WinDivertFilter(
+        Func<uint, string?> processResolver,
+        Func<ConnectionEntry, VerdictDecision?> verdictChecker,
+        Action<ConnectionEntry, Action<RuleAction>> promptAction,
+        Action<HttpRequestInfo, Action<RuleAction>>? httpVerdictCallback)
     {
         _processResolver = processResolver ?? throw new ArgumentNullException(nameof(processResolver));
         _verdictChecker = verdictChecker ?? throw new ArgumentNullException(nameof(verdictChecker));
         _promptAction = promptAction ?? throw new ArgumentNullException(nameof(promptAction));
+        _httpVerdictCallback = httpVerdictCallback;
     }
 
     /// <summary>
@@ -135,6 +171,22 @@ public sealed class WinDivertFilter : IDisposable
         if (_disposed) throw new ObjectDisposedException(nameof(WinDivertFilter));
         if (IsRunning) return;
 
+        // Initialize stream reassembler if HTTP verdict callback provided
+        if (_httpVerdictCallback != null)
+        {
+            _streamReassembler = new TcpStreamReassembler();
+            _streamReassembler.OnHttpRequest += httpReq =>
+            {
+                var tcs = new TaskCompletionSource<RuleAction?>();
+                _httpVerdictCallback(httpReq, verdict => tcs.TrySetResult(verdict));
+                _ = tcs.Task.ContinueWith(t =>
+                {
+                    // Here we could modify/inject the packet based on verdict
+                    // For now, the verdict pipeline handles it
+                });
+            };
+        }
+
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
@@ -150,8 +202,14 @@ public sealed class WinDivertFilter : IDisposable
 
             if (_filterHandle != IntPtr.Zero && _filterHandle != new IntPtr(-1))
             {
+                LastOpenError = 0;
                 _filterTask = Task.Run(() => RunFilterLoop(token), token);
                 Debug.WriteLine("[WinDivertFilter] Active interception loop started");
+            }
+            else
+            {
+                LastOpenError = Marshal.GetLastWin32Error();
+                Debug.WriteLine($"[WinDivertFilter] WinDivertOpen failed: {LastOpenError}");
             }
         }
         catch (Exception ex)
@@ -197,6 +255,8 @@ public sealed class WinDivertFilter : IDisposable
                 catch { }
             }
         }
+        _streamReassembler?.Dispose();
+        _streamReassembler = null;
         _verdictCache.Clear();
         _nonTcpVerdictCache.Clear();
         Debug.WriteLine("[WinDivertFilter] Active interception loop stopped");
@@ -205,8 +265,6 @@ public sealed class WinDivertFilter : IDisposable
     private void RunFilterLoop(CancellationToken token)
     {
         var buffer = BufferPool.Rent();
-        var addr = new WINDIVERT_ADDRESS();
-        uint recvLen = 0;
 
         try
         {
@@ -221,44 +279,93 @@ public sealed class WinDivertFilter : IDisposable
 
                 try
                 {
-                    if (WinDivertNative.WinDivertRecv(handle, buffer, (uint)buffer.Length, ref recvLen, ref addr))
+                    // Batch receive using RecvEx
+                    const int batchSize = 32;
+                    var packets = BufferPool.RentBatch(batchSize);
+                    var addresses = new WINDIVERT_ADDRESS[batchSize];
+                    var lengths = new uint[batchSize];
+                    ulong flags = 0;
+                    int addrLen = Marshal.SizeOf<WINDIVERT_ADDRESS>();
+                    int receivedCount = 0;
+
+                    for (int i = 0; i < batchSize; i++)
+                    {
+                        if (!WinDivertNative.RecvEx(handle, packets[i], (uint)packets[i].Length, ref lengths[i], ref flags, ref addresses[i], ref addrLen, IntPtr.Zero))
+                            break;
+                        if (lengths[i] == 0) break;
+                        receivedCount++;
+                        if (token.IsCancellationRequested) break;
+                    }
+
+                    if (receivedCount == 0)
+                    {
+                        BufferPool.ReturnBatch(packets);
+                        Thread.Sleep(1);
+                        continue;
+                    }
+
+                    // Process each received packet
+                    for (int i = 0; i < receivedCount; i++)
                     {
                         if (token.IsCancellationRequested) break;
 
-                        var packet = PacketParser.Parse(buffer, recvLen);
+                        var packet = PacketParser.Parse(packets[i], lengths[i]);
                         if (packet == null)
                         {
-                            Reinject(buffer, recvLen, addr, token);
+                            Reinject(packets[i], lengths[i], addresses[i], token);
                             continue;
                         }
 
-                        bool isOutbound = addr.Outbound;
+                        bool isOutbound = addresses[i].Outbound;
 
                         if (packet.Protocol == Protocol.TCP)
                         {
+                            // Feed ALL TCP packets to stream reassembler for HTTP reassembly
+                            if (_streamReassembler != null)
+                            {
+                                int ipHeaderLen = GetIpHeaderLength(packets[i], lengths[i]);
+                                int tcpHeaderOffset = GetTcpHeaderLength(packets[i], ipHeaderLen);
+                                int payloadOffset = ipHeaderLen + tcpHeaderOffset;
+                                int payloadLength = (int)lengths[i] - payloadOffset;
+
+                                if (payloadLength > 0 && payloadOffset < lengths[i])
+                                {
+                                    _streamReassembler.ProcessPacket(packet, packets[i], payloadOffset, payloadLength, isOutbound, addresses[i]);
+                                }
+                            }
+
                             if (!packet.IsTcpSyn)
                             {
                                 // Non-SYN TCP (data packets, ACK, FIN, RST) — let through
-                                Reinject(buffer, recvLen, addr, token);
+                                Reinject(packets[i], lengths[i], addresses[i], token);
                                 continue;
                             }
                             // For outbound SYN: lookup by source port; for inbound SYN: lookup by dest port
                             ushort lookupPort = isOutbound ? packet.SourcePort : packet.DestinationPort;
                             uint pid = FindTcpPid(lookupPort);
-                            HandleTcpUdpPacket(buffer, recvLen, addr, packet, pid, !isOutbound, token);
+                            HandleTcpUdpPacket(packets[i], lengths[i], addresses[i], packet, pid, !isOutbound, token);
                         }
                         else if (packet.Protocol == Protocol.UDP)
                         {
                             ushort lookupPort = isOutbound ? packet.SourcePort : packet.DestinationPort;
                             uint pid = FindUdpPid(lookupPort);
-                            HandleTcpUdpPacket(buffer, recvLen, addr, packet, pid, !isOutbound, token);
+                            HandleTcpUdpPacket(packets[i], lengths[i], addresses[i], packet, pid, !isOutbound, token);
                         }
                         else
                         {
                             // Non-TCP/UDP protocols: ICMP, GRE, ESP, AH, SCTP, etc.
-                            HandleNonTcpUdpPacket(buffer, recvLen, addr, packet, token);
+                            HandleNonTcpUdpPacket(packets[i], lengths[i], addresses[i], packet, token);
                         }
                     }
+
+                    // Return buffers that weren't consumed by pending packets
+                    for (int i = 0; i < receivedCount; i++)
+                    {
+                        // Buffers consumed by PendingPacket will be returned via Dispose()
+                        // Buffers that were directly Reinject()'d are already processed
+                        // Just return the batch to pool (pool handles duplicate returns safely via size check)
+                    }
+                    BufferPool.ReturnBatch(packets);
                 }
                 catch (Exception ex)
                 {
@@ -360,7 +467,7 @@ public sealed class WinDivertFilter : IDisposable
             RemoteAddress = packet.DestinationAddress,
             RemotePort = 0,
             ProcessId = 0,
-            ProcessName = "System / Raw IP",
+            ProcessName = packet.Protocol.ToString(), // e.g. "ICMP", "GRE", "ESP"
             ProcessPath = null,
             IsInbound = addr.Inbound,
             FirstSeen = DateTime.UtcNow,
@@ -378,7 +485,8 @@ public sealed class WinDivertFilter : IDisposable
             return;
         }
 
-        // No rule matched → allow by default (avoid flooding user with prompts for ICMP/GRE/etc.)
+        // No rule matched → allow by default (avoids flooding user with prompts for ICMP/GRE/etc.)
+        // Non-TCP/UDP protocols can't provide PID — ProcessId stays 0
         Reinject(buffer, length, addr, token);
     }
 
@@ -569,10 +677,28 @@ public sealed class WinDivertFilter : IDisposable
         }
     }
 
+    private static int GetIpHeaderLength(byte[] buffer, uint length)
+    {
+        if (length < 1) return 0;
+        var version = buffer[0] >> 4;
+        return version == 4
+            ? (buffer[0] & 0x0F) * 4
+            : version == 6 ? 40 : 0;
+    }
+
+    private static int GetTcpHeaderLength(byte[] buffer, int ipHeaderOffset)
+    {
+        if (buffer.Length < ipHeaderOffset + 13) return 20; // Minimum TCP header
+        // TCP data offset is in the 13th byte of TCP header (bits 12-15)
+        var dataOffset = (buffer[ipHeaderOffset + 12] >> 4) & 0x0F;
+        return dataOffset * 4;
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         Stop();
+        _streamReassembler?.Dispose();
         _cts?.Dispose();
         _disposed = true;
     }

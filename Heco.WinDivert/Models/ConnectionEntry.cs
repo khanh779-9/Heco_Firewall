@@ -1,6 +1,6 @@
 using System;
 using System.Net;
-using Heco.WinDivert.Native;
+using Heco.WinDivert.Structs;
 
 namespace Heco.WinDivert.Models;
 

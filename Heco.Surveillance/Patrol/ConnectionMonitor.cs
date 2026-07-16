@@ -11,10 +11,11 @@ using Heco.Common.Models;
 using Heco.Common.Enums;
 using Heco.Common.Interfaces;
 using Heco.Surveillance.Native;
-using Heco.WinDivert.Native;
-using Heco.WinDivert.Sniffer;
+using Heco.WinDivert.Structs;
+using Heco.WinDivert.Interop;
+using Heco.WinDivert.Packet;
 using static Heco.Surveillance.Native.IpHlpApi;
-using static Heco.WinDivert.Native.WinDivertStructs;
+
 
 namespace Heco.Surveillance.Patrol;
 
@@ -1142,16 +1143,55 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
                     var srcIp = packet.SourceAddress;
                     var dstIp = packet.DestinationAddress;
 
-                    // Unique ID based on Protocol, SrcIP, DstIP, ports
-                    byte[] srcIpBytes = srcIp.GetAddressBytes();
-                    byte[] dstIpBytes = dstIp.GetAddressBytes();
-                    long id = (long)packet.Protocol;
-                    for (int i = 0; i < srcIpBytes.Length; i++)
-                        id = id * 31 ^ srcIpBytes[i];
-                    for (int i = 0; i < dstIpBytes.Length; i++)
-                        id = id * 31 ^ dstIpBytes[i];
-                    id = id * 31 ^ packet.SourcePort;
-                    id = id * 31 ^ packet.DestinationPort;
+                    // Determine local vs remote based on packet direction
+                    bool isInbound = addr.Inbound;
+                    IPAddress localAddr, remoteAddr;
+                    ushort localPort, remotePort;
+
+                    if (isInbound)
+                    {
+                        // Packet coming IN: remote -> local
+                        localAddr = dstIp;
+                        localPort = packet.DestinationPort;
+                        remoteAddr = srcIp;
+                        remotePort = packet.SourcePort;
+                    }
+                    else
+                    {
+                        // Packet going OUT: local -> remote
+                        localAddr = srcIp;
+                        localPort = packet.SourcePort;
+                        remoteAddr = dstIp;
+                        remotePort = packet.DestinationPort;
+                    }
+
+                    // Use correct hash function for address family (must match IP Helper API)
+                    // IP Helper stores addresses in network byte order (uint)
+                    long id;
+                    if (localAddr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ||
+                        remoteAddr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+                    {
+                        id = HashConnectionV6(
+                            localAddr.GetAddressBytes(),
+                            localPort,
+                            remoteAddr.GetAddressBytes(),
+                            remotePort,
+                            (byte)protocol);
+                    }
+                    else
+                    {
+                        // GetAddressBytes returns network byte order; convert to uint (network order)
+                        // to match how HashConnection expects it (same as IP Helper / FLOW layer)
+                        uint localAddrNet = (uint)localAddr.GetAddressBytes()[0] << 24 |
+                                            (uint)localAddr.GetAddressBytes()[1] << 16 |
+                                            (uint)localAddr.GetAddressBytes()[2] << 8 |
+                                            (uint)localAddr.GetAddressBytes()[3];
+                        uint remoteAddrNet = (uint)remoteAddr.GetAddressBytes()[0] << 24 |
+                                             (uint)remoteAddr.GetAddressBytes()[1] << 16 |
+                                             (uint)remoteAddr.GetAddressBytes()[2] << 8 |
+                                             (uint)remoteAddr.GetAddressBytes()[3];
+                        id = HashConnection(localAddrNet, localPort, remoteAddrNet, remotePort, (byte)protocol);
+                    }
 
                     // Resolve PID for TCP/UDP via port lookup (WinDivert NETWORK layer doesn't provide PID)
                     uint pid = 0;
@@ -1159,12 +1199,12 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
                     string? processPath = null;
                     if (protocol == NetworkProtocol.TCP)
                     {
-                        pid = FindTcpPid(packet.SourcePort);
+                        pid = FindTcpPid(localPort);
                         if (pid > 0) ResolveProcessInfo(pid, out processName, out processPath);
                     }
                     else if (protocol == NetworkProtocol.UDP)
                     {
-                        pid = FindUdpPid(packet.SourcePort);
+                        pid = FindUdpPid(localPort);
                         if (pid > 0) ResolveProcessInfo(pid, out processName, out processPath);
                     }
 
@@ -1183,28 +1223,45 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
                         processLabel = $"{protocol}";
                     }
 
+                    // Actual packet length from WinDivert
+                    long packetLen = recvLen;
+
                     var entry = new ConnectionEntry
                     {
                         Id = id & 0x7FFFFFFFFFFFFFFF,
                         Protocol = protocol,
-                        LocalAddress = srcIp,
-                        LocalPort = packet.SourcePort,
-                        RemoteAddress = dstIp,
-                        RemotePort = packet.DestinationPort,
+                        LocalAddress = localAddr,
+                        LocalPort = localPort,
+                        RemoteAddress = remoteAddr,
+                        RemotePort = remotePort,
                         TcpState = TcpState.Unknown,
                         ProcessId = pid,
                         ProcessName = processName ?? processLabel,
                         ProcessPath = processPath,
-                        IsInbound = addr.Inbound,
+                        IsInbound = isInbound,
                         FirstSeen = DateTime.UtcNow,
-                        LastSeen = DateTime.UtcNow
+                        LastSeen = DateTime.UtcNow,
+                        BytesSent = isInbound ? 0 : packetLen,
+                        BytesReceived = isInbound ? packetLen : 0
                     };
 
                     _rawConnections.AddOrUpdate(id, entry, (k, existing) =>
                     {
                         existing.LastSeen = DateTime.UtcNow;
-                        existing.BytesSent += packet.SourcePort > 0 ? 64u : 0u;
-                        existing.BytesReceived += packet.DestinationPort > 0 ? 64u : 0u;
+                        if (isInbound)
+                        {
+                            existing.BytesReceived += packetLen;
+                        }
+                        else
+                        {
+                            existing.BytesSent += packetLen;
+                        }
+                        if (pid > 0 && existing.ProcessId == 0)
+                        {
+                            existing.ProcessId = pid;
+                            existing.ProcessName = processName;
+                            existing.ProcessPath = processPath;
+                        }
                         return existing;
                     });
                 }
@@ -1532,9 +1589,58 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
 
         // IMPORTANT: Send FULL current snapshot, not just 'all' (which excludes TCP/UDP in normal mode)
         // This ensures UI always sees complete picture including FLOW-managed TCP/UDP connections
+        // Merge bandwidth from _rawConnections into _connections for matching 5-tuples
         var fullSnapshot = new List<ConnectionEntry>(_connections.Count + _rawConnections.Count);
-        fullSnapshot.AddRange(_connections.Values);
-        fullSnapshot.AddRange(_rawConnections.Values);
+        foreach (var conn in _connections.Values)
+        {
+            // Check if there's bandwidth data in _rawConnections for same 5-tuple
+            if (_rawConnections.TryGetValue(conn.Id, out var rawEntry))
+            {
+                // Create merged entry: use flow entry (has PID, process info) + bandwidth from raw
+                var merged = new ConnectionEntry
+                {
+                    Id = conn.Id,
+                    Protocol = conn.Protocol,
+                    LocalAddress = conn.LocalAddress,
+                    LocalPort = conn.LocalPort,
+                    RemoteAddress = conn.RemoteAddress,
+                    RemotePort = conn.RemotePort,
+                    TcpState = conn.TcpState,
+                    ProcessId = conn.ProcessId,
+                    ProcessName = conn.ProcessName,
+                    ProcessPath = conn.ProcessPath,
+                    IsInbound = conn.IsInbound,
+                    FirstSeen = conn.FirstSeen,
+                    LastSeen = conn.LastSeen,
+                    BytesSent = conn.BytesSent + rawEntry.BytesSent,
+                    BytesReceived = conn.BytesReceived + rawEntry.BytesReceived,
+                    ProfileName = conn.ProfileName,
+                    CountryCode = conn.CountryCode,
+                    CountryName = conn.CountryName,
+                    Asn = conn.Asn,
+                    Organization = conn.Organization,
+                    SentKbps = conn.SentKbps,
+                    ReceivedKbps = conn.ReceivedKbps,
+                    LocalMacAddress = conn.LocalMacAddress,
+                    RemoteMacAddress = conn.RemoteMacAddress,
+                    ArpType = conn.ArpType,
+                    InterfaceIndex = conn.InterfaceIndex
+                };
+                fullSnapshot.Add(merged);
+            }
+            else
+            {
+                fullSnapshot.Add(conn);
+            }
+        }
+        // Add any raw connections that don't have a matching flow entry (non-TCP/UDP)
+        foreach (var rawEntry in _rawConnections.Values)
+        {
+            if (!_connections.ContainsKey(rawEntry.Id))
+            {
+                fullSnapshot.Add(rawEntry);
+            }
+        }
         ConnectionsUpdated?.Invoke(this, fullSnapshot);
 
         RefreshStats();

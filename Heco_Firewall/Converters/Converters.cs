@@ -264,47 +264,6 @@ public sealed class NullablePortConverter : IValueConverter
     }
 }
 
-/// <summary>Status text → SolidColorBrush (Active → green, Error → red, else gray)</summary>
-internal sealed class StatusColorConverter : IValueConverter
-{
-    private static readonly SolidColorBrush Green = new(Color.FromRgb(0x2E, 0xA0, 0x43));
-    private static readonly SolidColorBrush Red = new(Color.FromRgb(0xF8, 0x51, 0x49));
-    private static readonly SolidColorBrush Gray = new(Color.FromRgb(0x99, 0x99, 0x99));
-    private static readonly SolidColorBrush Orange = new(Color.FromRgb(0xF5, 0xA6, 0x23));
-
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        if (value is string status)
-        {
-            if (string.IsNullOrEmpty(status) || status == "Not active")
-                return Gray;
-            if (status.StartsWith("Active"))
-                return Green;
-            if (status.StartsWith("Error") || status.StartsWith("Failed"))
-                return Red;
-            if (status.Contains("Starting") || status.Contains("Stopping"))
-                return Orange;
-            return Gray;
-        }
-        return Gray;
-    }
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
-}
-
-/// <summary>Bool → toggle button text ("Deactivate" / "Activate")</summary>
-internal sealed class BoolToToggleTextConverter : IValueConverter
-{
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        return value is bool b && b ? "Deactivate" : "Activate";
-    }
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
-}
-
 /// <summary>Bool (files exist) → green/gray Ellipse fill</summary>
 internal sealed class BoolToStatusColorConverter : IValueConverter
 {

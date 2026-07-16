@@ -861,8 +861,6 @@
             <conv:ProtocolToTextConverter x:Key="ProtocolText" />
             <conv:TcpStateToTextConverter x:Key="TcpStateText" />
             <conv:ByteFormatConverter x:Key="ByteFormat" />
-            <conv:StatusColorConverter x:Key="StatusColorConverter" />
-            <conv:BoolToToggleTextConverter x:Key="BoolToToggleText" />
             <conv:BoolToStatusColorConverter x:Key="BoolToStatusColorConverter" />
             <conv:BoolToGeoIpStatusConverter x:Key="BoolToGeoIpStatusConverter" />
             <conv:FileNameOnlyConverter x:Key="FileNameOnly" />

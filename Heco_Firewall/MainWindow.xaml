@@ -197,8 +197,18 @@
                 <!--  Warning Banner  -->
                 <Border Grid.Row="1" Background="#FFF5A623" Padding="16,4"
                         Visibility="{Binding HasWarning, Converter={StaticResource BoolToVis}}">
-                    <TextBlock Text="{Binding WarningText}" Foreground="#332200" FontSize="12"
-                               TextWrapping="Wrap" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding WarningText}" Foreground="#332200" FontSize="12"
+                                   TextWrapping="Wrap" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Height="24" Style="{StaticResource BtnGhost}"
+                                Command="{Binding CopyErrorDetailCommand}" ToolTip="Copy error details"
+                                Margin="8,0,0,0" Padding="6,0" VerticalAlignment="Center"
+                                FontSize="11" Content="Copy" />
+                    </Grid>
                 </Border>
 
                 <!--  Page Content  -->

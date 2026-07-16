@@ -3,5 +3,9 @@ namespace Heco.WinDivert.Models;
 public enum RuleAction
 {
     Permit,
-    Block
+    Block,
+    Redirect,
+    Modify,
+    Inject,
+    Inspect
 }

@@ -8,7 +8,7 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <DocumentationFile>bin\$(Configuration)\Heco.WinDivert.xml</DocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Platforms>AnyCPU;x86</Platforms>
+    <Platforms>AnyCPU;x64;x86</Platforms>
     <NoWarn>1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
