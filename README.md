@@ -12,6 +12,10 @@
 - **Per-application rules** — allow/block by executable path, port, protocol, IP address, or CIDR range
 - **Dynamic rule caching** — avoids repeated lookups for same application/direction
 - **Interactive mode** — prompts user for unknown connections (Allow Once / Block Once / Always Allow / Always Block)
+- **True async I/O** with overlapped WinDivertRecvEx/SendEx + `IValueTaskSource<int>` (zero-allocation)
+- **Native memory packet** — `SafeHandle`-backed `WinDivertPacket` with `NativeMemory.AllocZeroed`
+- **Full protocol headers** — unified `V4Header`/`V6Header` (LayoutKind.Explicit) covering TCP, UDP, ICMPv4, ICMPv6 fields
+- **Reverse endpoint, IP length recalculation, route-aware flags** — `ReverseEndPoint()`, `ApplyLengthToHeaders()`, `CalcNetworkIfIdx()`, `CalcOutboundFlag()`, `CalcLoopbackFlag()`
 
 ### Multi-Layer Verdict Pipeline
 Rules are evaluated in priority order:
@@ -38,12 +42,6 @@ Rules are evaluated in priority order:
 - **Fingerprint matching** by: full path, process name, command line, Windows service, Store app
 - **Action overrides** — per-profile allow/block inbound/outbound
 - **Hit counting** — tracks how many connections matched each profile
-
-### Self-Defense Driver (Kernel-Mode)
-- **ELAM-certified driver** (ported from Safing Portmaster)
-- **Protection levels**: Standard / Enhanced / Maximum
-- **Prevents** process termination, memory tampering, handle manipulation
-- **Blocked attempt logging** with real-time counter
 
 ### Real-Time Connection Monitor
 - **Live TCP/UDP/ARP/ICMP** connection table via `iphlpapi` (polled every 1–2s)
@@ -98,10 +96,9 @@ Rules are evaluated in priority order:
 │  └──────────────────────────────────────────────────────────┘  │
 ├─────────────────────────────────────────────────────────────────┤
 │  Native Layer (P/Invoke)                                        │
-│  • WinDivert.dll (packet interception)                          │
+│  • WinDivert.dll (packet interception via overlapped I/O)       │
 │  • iphlpapi.dll (connection tables, DNS cache, DHCP)           │
 │  • dnsapi.dll (DNS resolution)                                  │
-│  • HecoProtect.sys (kernel self-defense driver)                │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -124,18 +121,21 @@ Heco_Firewall/
 │   ├── Data/                      # FirewallRuleRepository (JSON persistence)
 │   └── Diagnostics/               # Logger, HecoException
 ├── Heco.WinDivert/                # WinDivert wrapper & packet filtering
-│   ├── Native/                    # P/Invoke: WinDivertNative, WinDivertStructs, IPHelpApiNative
+│   ├── Structs/                   # Protocol headers & WinDivert structs (V4Header, V6Header, TcpHeader, WINDIVERT_ADDRESS, enums)
+│   ├── Interop/                   # P/Invoke: WinDivertNative, Kernel32Native, IPHelpApiNative, RouteResolver
+│   ├── Device/                    # WinDivertDevice + overlapped async I/O (IValueTaskSource<int>)
+│   ├── Packet/                    # Native memory SafeHandle packet, packet parsing
 │   ├── Filtering/                 # WinDivertFilter (active interception), WinDivertDnsRedirector
-│   ├── Sniffer/                   # PacketParser, WinDivertPacket
+│   ├── StreamReassembly/          # TCP stream reassembly for HTTP inspection
+│   ├── Services/                  # Driver management
 │   ├── Models/                    # ConnectionEntry, RuleAction
-│   └── Dns/                       # DNS query/response parsing for DoH redirect
+│   ├── Dns/                       # DNS query/response parsing for DoH redirect
+│   └── Drivers/                   # WinDivert DLL & driver files
 ├── Heco.Surveillance/             # Network monitoring (iphlpapi-based)
 │   ├── Patrol/                    # ConnectionMonitor (live connection polling)
 │   ├── Recon/                     # ProcessResolver, DnsResolver
 │   ├── Native/                    # IpHlpApi, DnsApi P/Invoke
 │   └── Sniffer/                   # Raw packet capture (PacketSniffer)
-├── Heco.Protection.Driver/        # Kernel self-defense driver (C, built separately)
-│   └── build/Release/x64|Win32/   # HecoProtect.sys (copied to app output)
 ├── tools/
 │   └── Download-GeoIP.ps1         # PowerShell script to download MaxMind DBs
 ├── Heco_Firewall.sln
@@ -149,7 +149,7 @@ Heco_Firewall/
 ### Prerequisites
 - **Windows 10/11** (x64)
 - **.NET 8 Desktop Runtime** (or SDK for building)
-- **Administrator privileges** — required for WinDivert driver and self-defense
+- **Administrator privileges** — required for WinDivert driver
 - **WinDivert driver** — installed automatically on first run (or manually via `WinDivert.dll`)
 
 ### Installation
@@ -193,7 +193,7 @@ cd Heco_Firewall/bin/x64/Release/net8.0-windows
 
 ### First Launch
 1. Run **as Administrator** (right-click → "Run as administrator")
-2. The app will show a warning if not elevated — WinDivert and self-defense require admin
+2. The app will show a warning if not elevated — WinDivert requires admin
 3. Click **"Start Protection"** on Dashboard or enable **Firewall Active** in Settings
 
 ### Dashboard
@@ -235,7 +235,7 @@ cd Heco_Firewall/bin/x64/Release/net8.0-windows
 ### Settings
 - **General**: Minimize to tray, start minimized, check for updates
 - **Firewall**: Interactive mode, secure DNS (DoH), notifications
-- **Self-Defense**: Enable/driver, protection level (Standard/Enhanced/Maximum)
+
 - **GeoIP**: Database path, MMDB Viewer
 - **Advanced**: Refresh interval, max dynamic filters, log level
 
@@ -280,16 +280,6 @@ Firewall rules stored in `%APPDATA%\Heco\rules.json`.
 
 ## Development
 
-### Building the Driver (HecoProtect.sys)
-The kernel driver is in `Heco.Protection.Driver/` and must be built separately with **Windows Driver Kit (WDK)**:
-
-```bash
-# Requires: Visual Studio 2022 + WDK 10.0.22621+
-cd Heco.Protection.Driver
-msbuild Heco.Protection.Driver.vcxproj /p:Configuration=Release /p:Platform=x64
-# Output: build/Release/x64/HecoProtect.sys (copied to app output via csproj)
-```
-
 ### Key NuGet Packages
 | Package | Purpose |
 |---------|---------|
@@ -319,13 +309,6 @@ This project uses **GeoLite2 databases** from MaxMind for IP geolocation and ASN
 
 > **Special thanks to P3TERX** for maintaining the automated GeoLite2 mirror repository, which makes it easy to obtain updated databases.
 
-### Safing Portmaster (Self-Defense Driver)
-The kernel-mode self-defense driver (`HecoProtect.sys`) is ported from **Safing ICS Technologies GmbH**'s excellent [Portmaster](https://github.com/safing/portmaster) project.
-
-- **Author**: Safing ICS Technologies GmbH (Austria)
-- **Repository**: [https://github.com/safing/portmaster](https://github.com/safing/portmaster)
-- **License**: GPL-3.0 (driver portion)
-
 ### WinDivert
 Packet interception powered by **WinDivert** — a user-mode packet capture/divert library for Windows.
 
@@ -348,7 +331,6 @@ Packet interception powered by **WinDivert** — a user-mode packet capture/dive
 
 Third-party components retain their original licenses:
 - MaxMind GeoLite2 databases: **CC BY-SA 4.0**
-- Safing Portmaster driver: **GPL-3.0**
 - WinDivert: **LGPL-2.1**
 
 ---
