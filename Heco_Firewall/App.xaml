@@ -864,6 +864,7 @@
             <conv:BoolToStatusColorConverter x:Key="BoolToStatusColorConverter" />
             <conv:BoolToGeoIpStatusConverter x:Key="BoolToGeoIpStatusConverter" />
             <conv:FileNameOnlyConverter x:Key="FileNameOnly" />
+            <conv:ProcessIdToTextConverter x:Key="ProcessIdText" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

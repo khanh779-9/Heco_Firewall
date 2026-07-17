@@ -129,7 +129,7 @@
                             </DataGridTextColumn>
                             <DataGridTextColumn Header="MAC" Binding="{Binding LocalMacAddress}" Width="Auto" />
                             <DataGridTextColumn Header="Process" Binding="{Binding ProcessName}" Width="Auto" />
-                            <DataGridTextColumn Header="PID" Binding="{Binding ProcessId}" Width="Auto" />
+                            <DataGridTextColumn Header="PID" Binding="{Binding ProcessId, Converter={StaticResource ProcessIdText}}" Width="Auto" />
                             <DataGridTextColumn Header="Profile" Binding="{Binding ProfileName}" Width="Auto" />
                             <DataGridTextColumn Header="Country" Binding="{Binding CountryCode}" Width="Auto" />
                             <DataGridTextColumn Header="ASN" Binding="{Binding Asn}" Width="Auto" />

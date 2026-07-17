@@ -291,6 +291,20 @@ internal sealed class BoolToGeoIpStatusConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
+/// <summary>PID (uint) → empty string if 0 (no process), otherwise the number</summary>
+internal sealed class ProcessIdToTextConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is uint pid && pid > 0)
+            return pid.ToString();
+        return string.Empty;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
 /// <summary>Full file path → filename only (e.g. "C:\Windows\explorer.exe" → "explorer.exe")</summary>
 internal sealed class FileNameOnlyConverter : IValueConverter
 {

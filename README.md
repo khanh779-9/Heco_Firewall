@@ -44,8 +44,9 @@ Rules are evaluated in priority order:
 - **Hit counting** — tracks how many connections matched each profile
 
 ### Real-Time Connection Monitor
-- **Live TCP/UDP/ARP/ICMP** connection table via `iphlpapi` (polled every 1–2s)
-- **Process resolution** — PID → name, path, icon, user, service
+- **Live TCP/UDP/ICMP/ARP/IGMP/GRE/ESP/AH/L2TP/SCTP/OSPF/EIGRP/RSVP/PIM/VRRP/...** connection table via WinDivert NETWORK sniff + `iphlpapi` polling (1–2s interval)
+- **Process resolution** — PID → name, path, icon, user, service (blank for protocols without port/PID)
+- **PID display** — empty for non-TCP/UDP protocols (ICMP, GRE, ESP, ARP, NDP, etc.)
 - **DNS cache inspection** — view resolved hostnames
 - **DHCP lease info** — adapter configuration
 - **Bandwidth tracking** — per-connection KB/s sent/received
@@ -106,6 +107,16 @@ Rules are evaluated in priority order:
 ```
 Heco_Firewall/
 ├── Heco_Firewall/                 # WPF Application (Main UI)
+│   ├── Common/                    # Shared domain library (merged)
+│   │   ├── Models/                # ConnectionEntry, GeoIpResult, ProtocolStats, etc.
+│   │   ├── Enums/                 # NetworkProtocol, RuleAction, TrafficDirection, etc.
+│   │   ├── Interfaces/            # IConnectionMonitor, IProfileManager, IGeoLookup, etc.
+│   │   ├── Services/              # Settings, Profiles, Blocklists, GeoIP, Monitoring
+│   │   ├── Data/                  # FirewallRuleRepository (JSON persistence)
+│   │   ├── Diagnostics/           # Logger, HecoException
+│   │   ├── Patrol/                # ConnectionMonitor (live connection polling)
+│   │   ├── Recon/                 # ProcessResolver, DnsResolver
+│   │   └── Native/                # IpHlpApi, DnsApi P/Invoke
 │   ├── Views/                     # XAML Views
 │   ├── ViewModels/                # MVVM ViewModels
 │   ├── Windows/                   # Dialog/Toast/Prompt windows
@@ -113,15 +124,8 @@ Heco_Firewall/
 │   ├── Converters/                # Value converters
 │   ├── Helpers/                   # RelayCommand, ObservableObject
 │   └── Data/                      # Bundled blocklists, GeoIP DBs
-├── Heco.Common/                   # Shared domain library
-│   ├── Models/                    # FirewallRule, ConnectionEntry, GeoIpResult, etc.
-│   ├── Enums/                     # RuleAction, TrafficDirection, NetworkProtocol, etc.
-│   ├── Interfaces/                # IWfpEngine, IConnectionMonitor, IBlocklistManager, etc.
-│   ├── Services/                  # Settings, Profiles, Blocklists, GeoIP, Monitoring, etc.
-│   ├── Data/                      # FirewallRuleRepository (JSON persistence)
-│   └── Diagnostics/               # Logger, HecoException
 ├── Heco.WinDivert/                # WinDivert wrapper & packet filtering
-│   ├── Structs/                   # Protocol headers & WinDivert structs (V4Header, V6Header, TcpHeader, WINDIVERT_ADDRESS, enums)
+│   ├── Structs/                   # Protocol headers & WinDivert structs (V4Header, V6Header, WINDIVERT_ADDRESS, enums)
 │   ├── Interop/                   # P/Invoke: WinDivertNative, Kernel32Native, IPHelpApiNative, RouteResolver
 │   ├── Device/                    # WinDivertDevice + overlapped async I/O (IValueTaskSource<int>)
 │   ├── Packet/                    # Native memory SafeHandle packet, packet parsing
@@ -130,12 +134,7 @@ Heco_Firewall/
 │   ├── Services/                  # Driver management
 │   ├── Models/                    # ConnectionEntry, RuleAction
 │   ├── Dns/                       # DNS query/response parsing for DoH redirect
-│   └── Drivers/                   # WinDivert DLL & driver files
-├── Heco.Surveillance/             # Network monitoring (iphlpapi-based)
-│   ├── Patrol/                    # ConnectionMonitor (live connection polling)
-│   ├── Recon/                     # ProcessResolver, DnsResolver
-│   ├── Native/                    # IpHlpApi, DnsApi P/Invoke
-│   └── Sniffer/                   # Raw packet capture (PacketSniffer)
+│   └── Drivers/                   # WinDivert DLL & driver files (x86/x64 with both .sys)
 ├── tools/
 │   └── Download-GeoIP.ps1         # PowerShell script to download MaxMind DBs
 ├── Heco_Firewall.sln
@@ -151,6 +150,7 @@ Heco_Firewall/
 - **.NET 8 Desktop Runtime** (or SDK for building)
 - **Administrator privileges** — required for WinDivert driver
 - **WinDivert driver** — installed automatically on first run (or manually via `WinDivert.dll`)
+  - **32-bit build on 64-bit Windows**: includes `WinDivert64.sys` in `Drivers\x86\` for kernel driver compatibility
 
 ### Installation
 
@@ -294,6 +294,14 @@ Firewall rules stored in `%APPDATA%\Heco\rules.json`.
 - **Driver**: Use `DbgView` for kernel debug prints (`KdPrint`)
 - **Connection Monitor**: Logs to `Logger` (Serilog → file + debug)
 - **Packet capture**: Enable `PacketSniffer` in `Heco.Surveillance` for raw pcap
+
+### Troubleshooting
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| `WinDivertOpen` returns `ERROR_FILE_NOT_FOUND (0x2)` on 32-bit app (x86) running on 64-bit Windows | 32-bit WinDivert.dll needs `WinDivert64.sys` (64-bit kernel driver) but only `WinDivert32.sys` was in `Drivers/x86/` | Copy `WinDivert64.sys` into `Heco.WinDivert/Drivers/x86/` (done in repo) |
+| ICMP/other protocols not showing in Connections tab | WinDivert driver failed to load → fallback to IP Helper API (TCP/UDP only) | Ensure app runs as **Administrator** and driver files present in output `Drivers/x86/` or `Drivers/x64/` |
+| "Access denied" on start | Not running elevated | Right-click → **Run as Administrator** |
+| No GeoIP data | MaxMind `.mmdb` files missing | Run `tools/Download-GeoIP.ps1` with license key |
 
 ---
 
