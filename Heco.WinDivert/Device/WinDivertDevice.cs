@@ -73,8 +73,7 @@ public class WinDivertDevice : SafeHandleZeroOrMinusOneIsInvalid
         if (IsInvalid)
             throw new Win32Exception(lastError);
 
-        try { Filter = WinDivertNative.FormatFilter(filter, layer); }
-        catch { Filter = filter; }
+        Filter = filter;
 
         Layer = layer;
         Priority = priority;
@@ -124,14 +123,14 @@ public class WinDivertDevice : SafeHandleZeroOrMinusOneIsInvalid
 
     public bool Shutdown(WinDivertShutdown how = WinDivertShutdown.Both)
     {
-        return WinDivertNative.WinDivertShutdown(GetHandle(), (byte)how);
+        return WinDivertNative.WinDivertShutdown(GetHandle(), how);
     }
 
     // ── Params ──
 
     public long GetParam(WinDivertParam param)
     {
-        if (!WinDivertNative.WinDivertGetParam(GetHandle(), (uint)param, out var value))
+        if (!WinDivertNative.WinDivertGetParam(GetHandle(), param, out var value))
             throw new Win32Exception(Marshal.GetLastWin32Error());
         return (long)value;
     }
@@ -145,7 +144,7 @@ public class WinDivertDevice : SafeHandleZeroOrMinusOneIsInvalid
         if (param == WinDivertParam.QueueLength && (value < 32 || value > 16384))
             throw new ArgumentOutOfRangeException(nameof(value));
 
-        if (!WinDivertNative.WinDivertSetParam(GetHandle(), (uint)param, (ulong)value))
+        if (!WinDivertNative.WinDivertSetParam(GetHandle(), param, (ulong)value))
             throw new Win32Exception(Marshal.GetLastWin32Error());
     }
 

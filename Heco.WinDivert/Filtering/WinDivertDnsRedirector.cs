@@ -8,8 +8,8 @@ using System.Threading.Tasks;
 using Heco.WinDivert.Dns;
 using Heco.WinDivert.Structs;
 using Heco.WinDivert.Interop;
-using static Heco.WinDivert.Structs.WinDivertLayer;
-using static Heco.WinDivert.Structs.WinDivertFlag;
+using static Heco.WinDivert.Enums.WinDivertLayer;
+using static Heco.WinDivert.Enums.WinDivertFlag;
 
 
 namespace Heco.WinDivert.Filtering;

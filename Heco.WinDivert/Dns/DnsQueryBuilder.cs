@@ -9,26 +9,30 @@ public static class DnsQueryBuilder
 {
     private static int _queryId = 1;
 
+    private const byte NamePointerHigh = 0xC0;
+    private const byte OriginalQueryOffset = 12;
+
     public static byte[] CreateUDP(string domain, DnsQueryType queryType = DnsQueryType.A)
     {
         var query = new List<byte>();
 
         var id = (ushort)Interlocked.Increment(ref _queryId);
-        query.AddRange(BitConverter.GetBytes(id).Reverse()); // Transaction ID (big endian)
-        query.AddRange(new byte[] { 1, 0 }); // Flags: standard query, recursion desired
-        query.AddRange(new byte[] { 0, 1 }); // Questions: 1
-        query.AddRange(new byte[] { 0, 0 }); // Answer RRs: 0
-        query.AddRange(new byte[] { 0, 0 }); // Authority RRs: 0
-        query.AddRange(new byte[] { 0, 0 }); // Additional RRs: 0
+        AppendUInt16(query, id);
+        AppendUInt16(query, 0x0100);
+        AppendUInt16(query, 1);
+        AppendUInt16(query, 0);
+        AppendUInt16(query, 0);
+        AppendUInt16(query, 0);
 
         foreach (var label in domain.Split('.'))
         {
             query.Add((byte)label.Length);
             query.AddRange(System.Text.Encoding.ASCII.GetBytes(label));
         }
-        query.Add(0); // Root label
+        query.Add(0);
 
-        query.AddRange(new byte[] { 0, (byte)queryType, 0, 1 }); // Type and Class (IN)
+        AppendUInt16(query, (ushort)queryType);
+        AppendUInt16(query, 1);
 
         return query.ToArray();
     }
@@ -49,69 +53,86 @@ public static class DnsQueryBuilder
     {
         var responsePacket = new List<byte>();
 
-        // Copy transaction ID and set response flags
         responsePacket.AddRange(originalQuery.Take(2));
-        responsePacket.AddRange(new byte[] { 0x81, 0x80 }); // Standard response, recursion available, no error
+        responsePacket.AddRange(new byte[] { 0x81, 0x80 });
 
-        // Add counts
-        responsePacket.AddRange(new byte[] { 0, 1 }); // Questions: 1
-        responsePacket.AddRange(BitConverter.GetBytes((ushort)(dnsResponse.IPs.Count + dnsResponse.CNames.Count)).Reverse());
-        responsePacket.AddRange(new byte[] { 0, 0 }); // Authority RRs: 0
-        responsePacket.AddRange(new byte[] { 0, 0 }); // Additional RRs: 0
+        AppendUInt16(responsePacket, 1);
+        AppendUInt16(responsePacket, (ushort)(dnsResponse.IPs.Count + dnsResponse.CNames.Count));
+        AppendUInt16(responsePacket, 0);
+        AppendUInt16(responsePacket, 0);
 
-        // Copy original query section (starts at byte 12)
-        int queryLen = 0;
-        for (int i = 12; i < originalQuery.Length; i++)
-        {
-            queryLen++;
-            if (originalQuery[i] == 0)
-            {
-                queryLen += 4; // Type (2) + Class (2)
-                break;
-            }
-        }
-        responsePacket.AddRange(originalQuery.Skip(12).Take(queryLen));
+        AppendQuestionSection(responsePacket, originalQuery);
 
-        // Add CNAME records
         foreach (var cname in dnsResponse.CNames)
         {
-            // Name pointer pointing to the original query domain (offset 12)
-            responsePacket.AddRange(new byte[] { 0xC0, 12 });
-            responsePacket.AddRange(new byte[] { 0, 5 }); // Type: CNAME
-            responsePacket.AddRange(new byte[] { 0, 1 }); // Class: IN
-            responsePacket.AddRange(BitConverter.GetBytes((uint)dnsResponse.TTL).Reverse());
+            AppendNamePointer(responsePacket);
+            AppendUInt16(responsePacket, 5);
+            AppendUInt16(responsePacket, 1);
+            AppendUInt32(responsePacket, (uint)dnsResponse.TTL);
 
             var cnameBytes = DnsUtils.EncodeDomainName(cname);
-            responsePacket.AddRange(BitConverter.GetBytes((ushort)cnameBytes.Length).Reverse());
+            AppendUInt16(responsePacket, (ushort)cnameBytes.Length);
             responsePacket.AddRange(cnameBytes);
         }
 
-        // Add A and AAAA records
         foreach (var ip in dnsResponse.IPs)
         {
-            // Name pointer pointing to the original query domain (offset 12)
-            responsePacket.AddRange(new byte[] { 0xC0, 12 });
-
-            if (ip.Contains(':')) // IPv6 (AAAA)
+            AppendNamePointer(responsePacket);
+            if (ip.Contains(':'))
             {
-                responsePacket.AddRange(new byte[] { 0, 28 }); // Type: AAAA
-                responsePacket.AddRange(new byte[] { 0, 1 });  // Class: IN
-                responsePacket.AddRange(BitConverter.GetBytes((uint)dnsResponse.TTL).Reverse());
-                responsePacket.AddRange(new byte[] { 0, 16 }); // Length: 16
+                AppendUInt16(responsePacket, 28);
+                AppendUInt16(responsePacket, 1);
+                AppendUInt32(responsePacket, (uint)dnsResponse.TTL);
+                AppendUInt16(responsePacket, 16);
+                responsePacket.AddRange(System.Net.IPAddress.Parse(ip).GetAddressBytes());
+                continue;
+            }
 
-                var ipBytes = System.Net.IPAddress.Parse(ip).GetAddressBytes();
-                responsePacket.AddRange(ipBytes);
-            }
-            else // IPv4 (A)
-            {
-                responsePacket.AddRange(new byte[] { 0, 1 }); // Type: A
-                responsePacket.AddRange(new byte[] { 0, 1 }); // Class: IN
-                responsePacket.AddRange(BitConverter.GetBytes((uint)dnsResponse.TTL).Reverse());
-                responsePacket.AddRange(new byte[] { 0, 4 });  // Length: 4
-                responsePacket.AddRange(ip.Split('.').Select(byte.Parse));
-            }
+            AppendUInt16(responsePacket, 1);
+            AppendUInt16(responsePacket, 1);
+            AppendUInt32(responsePacket, (uint)dnsResponse.TTL);
+            AppendUInt16(responsePacket, 4);
+            responsePacket.AddRange(ip.Split('.').Select(byte.Parse));
         }
 
         return responsePacket.ToArray();
+    }
+
+    private static void AppendUInt16(List<byte> target, ushort value)
+    {
+        target.AddRange(BitConverter.GetBytes(value).Reverse());
+    }
+
+    private static void AppendUInt32(List<byte> target, uint value)
+    {
+        target.AddRange(BitConverter.GetBytes(value).Reverse());
+    }
+
+    private static void AppendNamePointer(List<byte> target)
+    {
+        target.Add(NamePointerHigh);
+        target.Add(OriginalQueryOffset);
+    }
+
+    private static void AppendQuestionSection(List<byte> target, byte[] originalQuery)
+    {
+        int queryLength = GetQuestionSectionLength(originalQuery);
+        target.AddRange(originalQuery.Skip(OriginalQueryOffset).Take(queryLength));
+    }
+
+    private static int GetQuestionSectionLength(byte[] query)
+    {
+        int length = 0;
+        for (int i = OriginalQueryOffset; i < query.Length; i++)
+        {
+            length++;
+            if (query[i] != 0)
+                continue;
+
+            length += 4;
+            break;
+        }
+
+        return length;
     }
 }

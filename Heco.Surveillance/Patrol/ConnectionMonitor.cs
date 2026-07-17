@@ -11,6 +11,7 @@ using Heco.Common.Models;
 using Heco.Common.Enums;
 using Heco.Common.Interfaces;
 using Heco.Surveillance.Native;
+using Heco.WinDivert.Enums;
 using Heco.WinDivert.Structs;
 using Heco.WinDivert.Interop;
 using Heco.WinDivert.Packet;
@@ -452,16 +453,12 @@ public sealed class ConnectionMonitor : IConnectionMonitor, IDisposable
     private static unsafe List<ConnectionEntry> GetUdp6Connections()
     {
         var result = new List<ConnectionEntry>();
-        var buffer = _tableBuffer.Value;
 
         uint size = 0;
         var hr = IpHlpApi.GetExtendedUdpTable(IntPtr.Zero, ref size, false,
             23, // AF_INET6
             IpHlpApi.UDP_TABLE_OWNER_PID, 0);
         if (hr != 0 && hr != 122) return result;
-
-        if (size > (uint)buffer.Length)
-            Array.Resize(ref buffer, (int)size);
 
         var ptr = Marshal.AllocHGlobal((int)size);
         try

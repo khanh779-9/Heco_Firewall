@@ -147,7 +147,33 @@ public sealed class WinDivertPacket : SafeHandleZeroOrMinusOneIsInvalid, IEquata
 
     public unsafe WinDivertParseResult? GetRichParseResult()
     {
-        return WinDivertNative.ParsePacket(ToArray(), (uint)_length);
+        var buffer = ToArray();
+        var length = (uint)_length;
+        V4Header* v4 = null;
+        V6Header* v6 = null;
+        byte rawProtocol = 0;
+        byte* icmp4 = null;
+        byte* icmp6 = null;
+        byte* tcp = null;
+        byte* udp = null;
+        byte* data = null;
+        int dataLen = 0;
+        byte* next = null;
+        int nextLen = 0;
+
+        if (WinDivertNative.WinDivertHelperParsePacket(buffer, length,
+                out v4, out v6, out rawProtocol,
+                out icmp4, out icmp6,
+                out tcp, out udp,
+                out data, out dataLen,
+                out next, out nextLen))
+        {
+            return new WinDivertParseResult(
+                v4, v6, (Protocol)rawProtocol,
+                icmp4, icmp6, tcp, udp,
+                data, dataLen, next, nextLen);
+        }
+        return null;
     }
 
     // ── Reverse endpoints (swap src/dst IPs and ports) ──

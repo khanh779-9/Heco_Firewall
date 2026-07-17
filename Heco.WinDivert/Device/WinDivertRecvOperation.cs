@@ -1,3 +1,4 @@
+using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Threading;
@@ -32,20 +33,18 @@ internal sealed class WinDivertRecvOperation : WinDivertOperation
 
     protected override unsafe bool IOControl(int* pLength, NativeOverlapped* nativeOverlapped)
     {
-        int addrLen = sizeof(WINDIVERT_ADDRESS);
-        ulong flags = 0;
         uint recvLen = 0;
-        uint cap = (uint)_packet.Capacity;
+        uint addrLen = (uint)sizeof(WINDIVERT_ADDRESS);
 
-        var result = WinDivertNative.RecvEx(
+        var result = WinDivertNative.WinDivertRecvEx(
             Device.DangerousGetHandle(),
             _packet.DangerousGetHandle(),
-            cap,
+            (uint)_packet.Capacity,
             ref recvLen,
-            ref flags,
+            0UL,
             ref _addr,
             ref addrLen,
-            (nint)nativeOverlapped);
+            (IntPtr)nativeOverlapped);
 
         if (result)
         {

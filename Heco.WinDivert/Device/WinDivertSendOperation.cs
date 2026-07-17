@@ -29,15 +29,15 @@ internal sealed class WinDivertSendOperation : WinDivertOperation
             throw new ArgumentOutOfRangeException(nameof(_packet), "Packet length cannot be 0");
 
         uint sendLen = 0;
-        var result = WinDivertNative.SendEx(
+        var result = WinDivertNative.WinDivertSendEx(
             Device.DangerousGetHandle(),
             _packet.DangerousGetHandle(),
             (uint)_packet.Length,
             ref sendLen,
             0UL,
             ref Unsafe.AsRef(in _addr),
-            sizeof(WINDIVERT_ADDRESS),
-            (nint)nativeOverlapped);
+            (uint)sizeof(WINDIVERT_ADDRESS),
+            (IntPtr)nativeOverlapped);
 
         if (result)
             *pLength = (int)sendLen;

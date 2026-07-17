@@ -43,7 +43,6 @@ public sealed class WinDivertFilterEngine : IDisposable
     private long _packetsBlocked;
     private long _packetsRedirected;
     private long _httpRequestsInspected;
-    private long _httpsConnectionsIntercepted;
     private long _flowEstablished;
     private long _flowDeleted;
     private long _socketEvents;
@@ -101,7 +100,6 @@ public sealed class WinDivertFilterEngine : IDisposable
             return false;
         }
 
-        // Set default queue parameters for better throughput
         SetDefaultQueueParams();
 
         _isRunning = true;
@@ -132,11 +130,11 @@ public sealed class WinDivertFilterEngine : IDisposable
     private void SetDefaultQueueParams()
     {
         // Increase queue length for high throughput
-        WinDivertNative.SetParam(_handle, WinDivertParam.QueueLength, 8192);
+        WinDivertNative.WinDivertSetParam(_handle, WinDivertParam.QueueLength, 8192);
         // 2 second queue time
-        WinDivertNative.SetParam(_handle, WinDivertParam.QueueTime, 2000);
+        WinDivertNative.WinDivertSetParam(_handle, WinDivertParam.QueueTime, 2000);
         // 8MB queue size
-        WinDivertNative.SetParam(_handle, WinDivertParam.QueueSize, 8 * 1024 * 1024);
+        WinDivertNative.WinDivertSetParam(_handle, WinDivertParam.QueueSize, 8 * 1024 * 1024);
     }
 
     /// <summary>
@@ -145,7 +143,7 @@ public sealed class WinDivertFilterEngine : IDisposable
     public bool SetQueueLength(uint length)
     {
         if (!_isRunning) return false;
-        return WinDivertNative.SetParam(_handle, WinDivertParam.QueueLength, length);
+        return WinDivertNative.WinDivertSetParam(_handle, WinDivertParam.QueueLength, length);
     }
 
     /// <summary>
@@ -155,7 +153,7 @@ public sealed class WinDivertFilterEngine : IDisposable
     {
         length = 0;
         if (!_isRunning) return false;
-        return WinDivertNative.GetParam(_handle, WinDivertParam.QueueLength, out var val) && (length = (uint)val) >= 0;
+        return WinDivertNative.WinDivertGetParam(_handle, WinDivertParam.QueueLength, out var val) && (length = (uint)val) >= 0;
     }
 
     /// <summary>
@@ -164,7 +162,7 @@ public sealed class WinDivertFilterEngine : IDisposable
     public bool SetQueueTime(uint milliseconds)
     {
         if (!_isRunning) return false;
-        return WinDivertNative.SetParam(_handle, WinDivertParam.QueueTime, milliseconds);
+        return WinDivertNative.WinDivertSetParam(_handle, WinDivertParam.QueueTime, milliseconds);
     }
 
     /// <summary>
@@ -174,7 +172,7 @@ public sealed class WinDivertFilterEngine : IDisposable
     {
         milliseconds = 0;
         if (!_isRunning) return false;
-        return WinDivertNative.GetParam(_handle, WinDivertParam.QueueTime, out var val) && (milliseconds = (uint)val) >= 0;
+        return WinDivertNative.WinDivertGetParam(_handle, WinDivertParam.QueueTime, out var val) && (milliseconds = (uint)val) >= 0;
     }
 
     /// <summary>
@@ -183,7 +181,7 @@ public sealed class WinDivertFilterEngine : IDisposable
     public bool SetQueueSize(ulong size)
     {
         if (!_isRunning) return false;
-        return WinDivertNative.SetParam(_handle, WinDivertParam.QueueSize, size);
+        return WinDivertNative.WinDivertSetParam(_handle, WinDivertParam.QueueSize, size);
     }
 
     /// <summary>
@@ -193,7 +191,7 @@ public sealed class WinDivertFilterEngine : IDisposable
     {
         size = 0;
         if (!_isRunning) return false;
-        return WinDivertNative.GetParam(_handle, WinDivertParam.QueueSize, out size);
+        return WinDivertNative.WinDivertGetParam(_handle, WinDivertParam.QueueSize, out size);
     }
 
     /// <summary>
@@ -203,8 +201,8 @@ public sealed class WinDivertFilterEngine : IDisposable
     {
         if (!_isRunning) return null;
 
-        if (WinDivertNative.GetParam(_handle, WinDivertParam.VersionMajor, out var major) &&
-            WinDivertNative.GetParam(_handle, WinDivertParam.VersionMinor, out var minor))
+        if (WinDivertNative.WinDivertGetParam(_handle, WinDivertParam.VersionMajor, out var major) &&
+            WinDivertNative.WinDivertGetParam(_handle, WinDivertParam.VersionMinor, out var minor))
         {
             return new Version((int)major, (int)minor);
         }
@@ -227,7 +225,7 @@ public sealed class WinDivertFilterEngine : IDisposable
             if (graceful)
             {
                 // Graceful shutdown: stop receiving and sending
-                WinDivertNative.Shutdown(_handle, WinDivertShutdown.Both);
+                WinDivertNative.WinDivertShutdown(_handle, WinDivertShutdown.Both);
             }
 
             WinDivertNative.WinDivertClose(_handle);
@@ -267,10 +265,9 @@ public sealed class WinDivertFilterEngine : IDisposable
                 if (_currentLayer == WinDivertLayer.Flow || _currentLayer == WinDivertLayer.Socket)
                 {
                     // For Flow/Socket layers, use RecvEx to get full address info including events
-                    ulong flags = 0;
-                    int addrLen = Marshal.SizeOf<WINDIVERT_ADDRESS>();
-                    result = WinDivertNative.RecvEx(_handle, packetBuffer, (uint)packetBuffer.Length,
-                        ref packetLen, ref flags, ref addr, ref addrLen, IntPtr.Zero);
+                    uint addrLen = (uint)Marshal.SizeOf<WINDIVERT_ADDRESS>();
+                    result = WinDivertNative.WinDivertRecvEx(_handle, packetBuffer, (uint)packetBuffer.Length,
+                        ref packetLen, 0UL, ref addr, ref addrLen, IntPtr.Zero);
                 }
                 else
                 {
@@ -358,7 +355,6 @@ public sealed class WinDivertFilterEngine : IDisposable
                         PacketsBlocked = _packetsBlocked,
                         PacketsRedirected = _packetsRedirected,
                         HttpRequestsInspected = _httpRequestsInspected,
-                        HttpsConnectionsIntercepted = _httpsConnectionsIntercepted,
                         FlowEstablished = _flowEstablished,
                         FlowDeleted = _flowDeleted,
                         SocketEvents = _socketEvents,
@@ -756,7 +752,6 @@ public sealed class WinDivertFilterEngine : IDisposable
     public long PacketsBlocked => _packetsBlocked;
     public long PacketsRedirected => _packetsRedirected;
     public long HttpRequestsInspected => _httpRequestsInspected;
-    public long HttpsConnectionsIntercepted => _httpsConnectionsIntercepted;
     public long TotalFlowEstablished => _flowEstablished;
     public long TotalFlowDeleted => _flowDeleted;
     public long SocketEvents => _socketEvents;
@@ -945,7 +940,6 @@ public class FilterStatsEventArgs : EventArgs
     public long PacketsBlocked { get; set; }
     public long PacketsRedirected { get; set; }
     public long HttpRequestsInspected { get; set; }
-    public long HttpsConnectionsIntercepted { get; set; }
     public long FlowEstablished { get; set; }
     public long FlowDeleted { get; set; }
     public long SocketEvents { get; set; }

@@ -61,7 +61,6 @@ internal sealed class MainViewModel : ObservableObject
     private bool _isBusy;
     private int _selectedTabIndex;
     private int _blockedConnectionsToday;
-    private int _dynamicFilterCount;
     private string? _warningText;
     private bool _hasWarning;
 
@@ -536,7 +535,6 @@ public ICommand OpenEngineCommand { get; }
             _settingsService.AppSettings.FirewallActive = false;
             WarningText = null;
             BlockedConnectionsToday = 0;
-            _dynamicFilterCount = 0;
 
             ToastWindow.Show(Application.Current.MainWindow,
                 "Firewall Disabled", "Protection and connection monitoring have been turned off.",

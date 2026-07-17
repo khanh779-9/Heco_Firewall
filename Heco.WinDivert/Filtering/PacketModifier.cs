@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.Net;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Heco.WinDivert.Structs;
 using Heco.WinDivert.Interop;
@@ -171,8 +170,7 @@ public static class PacketModifier
 
                         // Copy HTTP response payload
                         var payloadDest = np + payloadOffset;
-                        var srcPtr = (byte*)Unsafe.AsPointer(ref responseBytes[0]);
-                        Buffer.MemoryCopy(srcPtr, payloadDest, responseBytes.Length, responseBytes.Length);
+                        Buffer.BlockCopy(responseBytes, 0, newPacket, payloadOffset, responseBytes.Length);
                     }
 
                     // Recalculate checksums on new packet
@@ -279,8 +277,7 @@ public static class PacketModifier
                 fixed (byte* p = packet)
                 {
                     var dst = p + payloadOffset;
-                    var srcPtr = (byte*)Unsafe.AsPointer(ref newData[0]);
-                    Buffer.MemoryCopy(srcPtr, dst, newData.Length, newData.Length);
+                    Buffer.BlockCopy(newData, 0, packet, payloadOffset, newData.Length);
 
                     return WinDivertNative.WinDivertHelperCalcChecksums(packet, packetLen, ref addr, 0);
                 }
@@ -407,7 +404,7 @@ public static class PacketModifier
         return version == 4 ? (packet[0] & 0x0F) * 4 : version == 6 ? 40 : 0;
     }
 
-    private static unsafe uint IpToUint(IPAddress ip)
+    private static uint IpToUint(IPAddress ip)
     {
         var bytes = ip.GetAddressBytes();
         if (bytes.Length == 4)
@@ -417,7 +414,7 @@ public static class PacketModifier
         throw new ArgumentException("IPv4 only");
     }
 
-    private static unsafe byte[] IpV6ToBytes(IPAddress ip)
+    private static byte[] IpV6ToBytes(IPAddress ip)
     {
         var bytes = ip.GetAddressBytes();
         if (bytes.Length != 16) throw new ArgumentException("IPv6 only");

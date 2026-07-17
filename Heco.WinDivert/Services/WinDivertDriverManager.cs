@@ -21,8 +21,8 @@ public static class WinDivertDriverManager
             try
             {
                 ulong major = 0, minor = 0;
-                if (WinDivertNative.GetParam(handle, WinDivertParam.VersionMajor, out major) &&
-                    WinDivertNative.GetParam(handle, WinDivertParam.VersionMinor, out minor))
+                if (WinDivertNative.WinDivertGetParam(handle, WinDivertParam.VersionMajor, out major) &&
+                    WinDivertNative.WinDivertGetParam(handle, WinDivertParam.VersionMinor, out minor))
                 {
                     return new Version((int)major, (int)minor);
                 }
