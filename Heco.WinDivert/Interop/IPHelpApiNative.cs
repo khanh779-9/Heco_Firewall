@@ -1,6 +1,5 @@
 using System;
 using System.Runtime.InteropServices;
-using Heco.WinDivert.Structs;
 
 namespace Heco.WinDivert.Interop;
 
@@ -67,19 +66,4 @@ internal static class IPHelpApiNative
         uint ulAf,
         int tableClass,
         uint reserved);
-
-    [DllImport("iphlpapi.dll", SetLastError = true)]
-    public static extern uint GetBestInterfaceEx(
-        ref SocketAddress destAddr,
-        out int bestIfIndex);
-
-    [DllImport("iphlpapi.dll", SetLastError = true)]
-    public static extern unsafe uint GetBestRoute2(
-        IntPtr interfaceLuid,
-        int interfaceIndex,
-        IntPtr sourceAddress,
-        ref SocketAddress destAddress,
-        uint protocol,
-        IntPtr bestRoute,
-        ref SocketAddress bestSourceAddress);
 }

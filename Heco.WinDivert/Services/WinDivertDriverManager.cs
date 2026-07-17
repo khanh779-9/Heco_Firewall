@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using Heco.WinDivert.Models;
 using Heco.WinDivert.Structs;
 using Heco.WinDivert.Interop;
 
@@ -39,15 +40,7 @@ public static class WinDivertDriverManager
         }
     }
 
-    public static string? GetErrorHint(int? errorCode)
-    {
-        return errorCode switch
-        {
-            null => null,
-            5 => "Access denied — try running as Administrator.",
-            _ => null
-        };
-    }
+    public static string? GetErrorHint(int? errorCode) => Win32Errors.GetHint(errorCode);
 
     internal static void SetError(int? code, string detail)
     {

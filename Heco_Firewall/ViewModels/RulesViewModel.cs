@@ -8,15 +8,17 @@ using Heco.Common.Models;
 using Heco.Common.Enums;
 using Heco.Common.Interfaces;
 using Heco.Common.Data;
-// [WFP DISABLED] using Heco.Core.Engine;
 using Heco_Firewall.Helpers;
 using Heco_Firewall.Windows;
 
 namespace Heco_Firewall.ViewModels;
 
+/// <summary>
+///   ViewModel for the Firewall Rules management page.
+///   Handles CRUD operations, batch selection, and rule persistence.
+/// </summary>
 internal sealed class RulesViewModel : ObservableObject
 {
-    // [WFP DISABLED] private readonly WfpEngine _engine;
     private readonly FirewallRuleRepository _repository;
     private FirewallRule? _selectedRule;
     private FirewallRule? _editingRule;
@@ -29,15 +31,15 @@ internal sealed class RulesViewModel : ObservableObject
 
         AddRuleCommand = new RelayCommand(AddRule);
         EditRuleCommand = new RelayCommand(EditRule, _ => SelectedRule is not null);
-        DeleteRuleCommand = new RelayCommand(async _ => await DeleteRuleAsync(), _ => SelectedRule is not null);
-        ToggleRuleCommand = new RelayCommand(async _ => await ToggleRuleAsync(), _ => SelectedRule is not null);
-        DeleteSelectedCommand = new RelayCommand(async _ => await DeleteSelectedAsync());
-        ToggleSelectedCommand = new RelayCommand(async _ => await ToggleSelectedAsync());
+        DeleteRuleCommand = new RelayCommand(_ => DeleteRule(), _ => SelectedRule is not null);
+        ToggleRuleCommand = new RelayCommand(_ => ToggleRule(), _ => SelectedRule is not null);
+        DeleteSelectedCommand = new RelayCommand(_ => DeleteSelected());
+        ToggleSelectedCommand = new RelayCommand(_ => ToggleSelected());
         SaveCommand = new RelayCommand(SaveChanges);
         DiscardCommand = new RelayCommand(DiscardChanges);
     }
 
-    //  Collections ─
+    // ── Collections ──────────────────────────────────────────────────
 
     public ObservableCollection<FirewallRule> Rules { get; } = new();
     public ObservableCollection<RuleAction> AvailableActions { get; } = new([RuleAction.Permit, RuleAction.Block]);
@@ -72,8 +74,9 @@ internal sealed class RulesViewModel : ObservableObject
     ]);
     public ObservableCollection<AddressFamily> AvailableAddressFamilies { get; } = new([AddressFamily.Both, AddressFamily.IPv4, AddressFamily.IPv6]);
 
-    //  Selection ─
+    // ── Selection ────────────────────────────────────────────────────
 
+    /// <summary>Toggle all rules' selection state.</summary>
     public bool SelectAll
     {
         get => _selectAll;
@@ -88,6 +91,7 @@ internal sealed class RulesViewModel : ObservableObject
         }
     }
 
+    /// <summary>Currently selected rule in the DataGrid. Setting this creates an editing clone.</summary>
     public FirewallRule? SelectedRule
     {
         get => _selectedRule;
@@ -124,26 +128,28 @@ internal sealed class RulesViewModel : ObservableObject
         }
     }
 
+    /// <summary>Editing clone of the selected rule (bound to the edit panel).</summary>
     public FirewallRule? EditingRule
     {
         get => _editingRule;
         set => SetProperty(ref _editingRule, value);
     }
 
+    /// <summary>Whether the edit panel is currently visible.</summary>
     public bool IsEditing
     {
         get => _isEditing;
         set => SetProperty(ref _isEditing, value);
     }
 
-    //  Stats 
+    // ── Stats ────────────────────────────────────────────────────────
 
     public int TotalRules => Rules.Count;
     public int ActiveRules => Rules.Count(r => r.IsEnabled);
     public int BlockRules => Rules.Count(r => r.Action == RuleAction.Block);
     public int PermitRules => Rules.Count(r => r.Action == RuleAction.Permit);
 
-    //  Commands 
+    // ── Commands ─────────────────────────────────────────────────────
 
     public ICommand AddRuleCommand { get; }
     public ICommand EditRuleCommand { get; }
@@ -154,8 +160,9 @@ internal sealed class RulesViewModel : ObservableObject
     public ICommand SaveCommand { get; }
     public ICommand DiscardCommand { get; }
 
-    //  Load / Persist 
+    // ── Load / Persist ───────────────────────────────────────────────
 
+    /// <summary>Reload all rules from the JSON repository.</summary>
     public void LoadRules()
     {
         Rules.Clear();
@@ -165,6 +172,7 @@ internal sealed class RulesViewModel : ObservableObject
         RefreshStats();
     }
 
+    /// <summary>Save or create the currently editing rule.</summary>
     public void SaveChanges(object? obj)
     {
         if (EditingRule is null) return;
@@ -187,11 +195,13 @@ internal sealed class RulesViewModel : ObservableObject
         RefreshStats();
     }
 
+    /// <summary>Discard editing changes and close the edit panel.</summary>
     public void DiscardChanges(object? obj)
     {
         SelectedRule = null;
     }
 
+    /// <summary>Create a new blank rule and open the edit panel.</summary>
     public void AddRule(object? obj)
     {
         var newRule = new FirewallRule
@@ -207,6 +217,7 @@ internal sealed class RulesViewModel : ObservableObject
         IsEditing = true;
     }
 
+    /// <summary>Open the edit panel for the currently selected rule.</summary>
     public void EditRule(object? obj)
     {
         if (SelectedRule is not null)
@@ -215,9 +226,10 @@ internal sealed class RulesViewModel : ObservableObject
         }
     }
 
-    //  Single Operations 
+    // ── Single Operations ────────────────────────────────────────────
 
-    public async System.Threading.Tasks.Task DeleteRuleAsync()
+    /// <summary>Delete the currently selected rule after user confirmation.</summary>
+    public void DeleteRule()
     {
         if (SelectedRule is null) return;
 
@@ -226,14 +238,14 @@ internal sealed class RulesViewModel : ObservableObject
             "Confirm Delete");
         if (result != DialogBoxResult.Yes) return;
 
-        // [WFP DISABLED] await RemoveRuleFromEngine(SelectedRule);
         _repository.Delete(SelectedRule.Id);
         Rules.Remove(SelectedRule);
         SelectedRule = null;
         RefreshStats();
     }
 
-    public async System.Threading.Tasks.Task ToggleRuleAsync()
+    /// <summary>Toggle the enabled/disabled state of the currently selected rule.</summary>
+    public void ToggleRule()
     {
         if (SelectedRule is null) return;
 
@@ -244,29 +256,14 @@ internal sealed class RulesViewModel : ObservableObject
         {
             Rules[idx] = rule;
             _repository.Save(rule);
-
-            // [WFP DISABLED]
-            // if (rule.IsEnabled)
-            // {
-            //     try { await System.Threading.Tasks.Task.Run(() => _engine.ApplyRules(new[] { rule })); }
-            //     catch { }
-            // }
-            // else if (rule.WfpFilterId != 0)
-            // {
-            //     try
-            //     {
-            //         await System.Threading.Tasks.Task.Run(() => _engine.RemoveRule(rule.WfpFilterId));
-            //         rule.WfpFilterId = 0;
-            //     }
-            //     catch { }
-            // }
         }
         RefreshStats();
     }
 
-    //  Batch Operations 
+    // ── Batch Operations ─────────────────────────────────────────────
 
-    public async System.Threading.Tasks.Task DeleteSelectedAsync()
+    /// <summary>Delete all selected (checked) rules after user confirmation.</summary>
+    public void DeleteSelected()
     {
         var selected = Rules.Where(r => r.IsSelected).ToList();
         if (selected.Count == 0) return;
@@ -278,7 +275,6 @@ internal sealed class RulesViewModel : ObservableObject
 
         foreach (var rule in selected)
         {
-            // [WFP DISABLED] await RemoveRuleFromEngine(rule);
             _repository.Delete(rule.Id);
             Rules.Remove(rule);
         }
@@ -289,7 +285,8 @@ internal sealed class RulesViewModel : ObservableObject
         RefreshStats();
     }
 
-    public async System.Threading.Tasks.Task ToggleSelectedAsync()
+    /// <summary>Toggle enabled/disabled state for all selected (checked) rules.</summary>
+    public void ToggleSelected()
     {
         var selected = Rules.Where(r => r.IsSelected).ToList();
         if (selected.Count == 0) return;
@@ -298,29 +295,24 @@ internal sealed class RulesViewModel : ObservableObject
         {
             rule.IsEnabled = !rule.IsEnabled;
             _repository.Save(rule);
-
-            // [WFP DISABLED]
-            // if (rule.IsEnabled)
-            // {
-            //     try { await System.Threading.Tasks.Task.Run(() => _engine.ApplyRules(new[] { rule })); }
-            //     catch { }
-            // }
-            // else if (rule.WfpFilterId != 0)
-            // {
-            //     try
-            //     {
-            //         await System.Threading.Tasks.Task.Run(() => _engine.RemoveRule(rule.WfpFilterId));
-            //         rule.WfpFilterId = 0;
-            //     }
-            //     catch { }
-            // }
         }
 
         RefreshRulesCollection();
         RefreshStats();
     }
 
-    //  Helpers 
+    // ── Helpers ───────────────────────────────────────────────────────
+
+    /// <summary>
+    ///   Add a rule and persist it immediately (used by interactive prompt).
+    /// </summary>
+    public void AddAndApplyRule(FirewallRule rule)
+    {
+        rule.Id = Guid.NewGuid();
+        Rules.Add(rule);
+        _repository.Save(rule);
+        RefreshStats();
+    }
 
     private void RefreshSelectedRules()
     {
@@ -342,48 +334,6 @@ internal sealed class RulesViewModel : ObservableObject
             Rules.Add(r);
     }
 
-    // [WFP DISABLED]
-    // private async System.Threading.Tasks.Task RemoveRuleFromEngine(FirewallRule rule)
-    // {
-    //     if (rule.WfpFilterId != 0)
-    //     {
-    //         try
-    //         {
-    //             await System.Threading.Tasks.Task.Run(() => _engine.RemoveRule(rule.WfpFilterId));
-    //         }
-    //         catch { }
-    //     }
-    // }
-
-    // [WFP DISABLED]
-    // public void ClearWfpFilterIds()
-    // {
-    //     foreach (var rule in Rules)
-    //         rule.WfpFilterId = 0;
-    // }
-
-    public void AddAndApplyRule(FirewallRule rule)
-    {
-        rule.Id = Guid.NewGuid();
-        Rules.Add(rule);
-        _repository.Save(rule);
-
-        // [WFP DISABLED]
-        // try
-        // {
-        //     if (rule.IsEnabled && _engine.IsConnected)
-        //     {
-        //         _engine.ApplyRules(new[] { rule });
-        //     }
-        // }
-        // catch (Exception ex)
-        // {
-        //     System.Diagnostics.Debug.WriteLine($"[RulesViewModel] Failed to apply quick rule: {ex.Message}");
-        // }
-
-        RefreshStats();
-    }
-
     private void RefreshStats()
     {
         OnPropertyChanged(nameof(TotalRules));
@@ -393,6 +343,7 @@ internal sealed class RulesViewModel : ObservableObject
     }
 }
 
+/// <summary>Helper for parsing port/address strings from UI text inputs.</summary>
 internal sealed class RuleEditingHelper
 {
     public static ushort? ParsePort(string? text) =>

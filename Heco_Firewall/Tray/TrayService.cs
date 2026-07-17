@@ -154,7 +154,12 @@ internal sealed class TrayService : IDisposable
         }
     }
 
-    /// <summary>Generate a 16x16 shield icon with state-dependent color.</summary>
+    /// <summary>
+    ///   Generate a 16×16 shield icon with state-dependent color.
+    ///   - <see cref="TrayIconState.Active"/>   → green shield
+    ///   - <see cref="TrayIconState.Disabled"/> → gray shield
+    ///   - <see cref="TrayIconState.Error"/>    → red shield
+    /// </summary>
     private static Icon GenerateShieldIcon(TrayIconState state)
     {
         var (fillColor, strokeColor) = state switch
@@ -211,11 +216,4 @@ internal sealed class TrayService : IDisposable
             _trayIcon = null;
         }
     }
-}
-
-internal enum TrayIconState
-{
-    Active,
-    Disabled,
-    Error
 }

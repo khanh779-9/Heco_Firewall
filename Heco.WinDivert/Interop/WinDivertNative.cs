@@ -15,8 +15,14 @@ public static partial class WinDivertNative
     static WinDivertNative()
     {
         var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-        var arch = Environment.Is64BitProcess ? "x64" : "x86";
-        var dllPath = Path.Combine(baseDir, "Drivers", arch, "WinDivert.dll");
+
+        var dllPath = Path.Combine(baseDir, "WinDivert.dll");
+        if (!File.Exists(dllPath))
+        {
+            var arch = Environment.Is64BitProcess ? "x64" : "x86";
+            dllPath = Path.Combine(baseDir, "Drivers", arch, "WinDivert.dll");
+        }
+
         if (File.Exists(dllPath))
             NativeLibrary.Load(dllPath);
     }

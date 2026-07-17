@@ -13,23 +13,12 @@
     <NoWarn>1591;0067</NoWarn>
     <Platforms>AnyCPU;x64;x86</Platforms>
     <ApplicationIcon>Copilot_20260714_223228.ico</ApplicationIcon>
+    <UseWindowsForms>False</UseWindowsForms>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="..\Heco.WinDivert\Drivers\x64\WinDivert.dll" Link="Drivers\x64\WinDivert.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\Heco.WinDivert\Drivers\x64\WinDivert64.sys" Link="Drivers\x64\WinDivert64.sys">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\Heco.WinDivert\Drivers\x86\WinDivert.dll" Link="Drivers\x86\WinDivert.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\Heco.WinDivert\Drivers\x86\WinDivert32.sys" Link="Drivers\x86\WinDivert32.sys">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="Copilot_20260714_223228.ico" />
   </ItemGroup>
   <ItemGroup>
@@ -59,4 +48,9 @@
     <ProjectReference Include="..\Heco.Surveillance\Heco.Surveillance.csproj" />
     <ProjectReference Include="..\Heco.WinDivert\Heco.WinDivert.csproj" />
   </ItemGroup>
+
+  <Target Name="_CopyWinDivertArch" AfterTargets="Build">
+    <Copy SourceFiles="..\Heco.WinDivert\Drivers\x64\WinDivert.dll" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="..\Heco.WinDivert\Drivers\x64\WinDivert64.sys" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

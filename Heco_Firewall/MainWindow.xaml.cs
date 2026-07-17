@@ -1,33 +1,51 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.Versioning;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using Heco_Firewall.ViewModels;
 using Heco_Firewall.Windows;
 
 namespace Heco_Firewall;
 
+/// <summary>
+///   Main application window — hosts navigation sidebar and page content.
+/// </summary>
 [SupportedOSPlatform("windows")]
 public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
+    private readonly Dictionary<string, PageConfig> _pages;
 
     public MainWindow()
     {
         InitializeComponent();
 
         _vm = (MainViewModel)DataContext;
-        // [WFP DISABLED] _vm.PropertyChanged += OnViewModelPropertyChanged;
+
+        // Build the page navigation map after InitializeComponent
+        // so all named elements are available.
+        _pages = new Dictionary<string, PageConfig>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Dashboard"]   = new(PageDashboard,   NavDashboard,   "Dashboard"),
+            ["Rules"]       = new(PageRules,        NavRules,       "Firewall Rules",      () => _vm.Rules.LoadRules()),
+            ["Connections"] = new(PageConnections,  NavConnections, "Live Connections"),
+            ["Settings"]    = new(PageSettings,     NavSettings,    "Settings"),
+            ["Profiles"]    = new(PageProfiles,     NavProfiles,    "Application Profiles", () => _vm.Profiles.Refresh()),
+            ["Blocklists"]  = new(PageBlocklists,   NavBlocklists,  "Blocklists",           () => _vm.Blocklists.Refresh()),
+            ["Activity"]    = new(PageActivity,     NavActivity,    "Activity Log",         () => _vm.Activity.RefreshStatus()),
+        };
 
         // Allow dragging the window via the title bar
         MouseDown += OnTitleBarMouseDown;
 
-        // Show default page and sync indicator at startup
+        // Show default page at startup
         ShowPage("Dashboard");
 
-        // Initialize system tray icon (deferred from App.OnStartup because
-        // StartupUri has not finished creating the window at that point)
+        // Initialize system tray icon once the window is fully loaded
+        // (StartupUri hasn't finished creating the window during App.OnStartup)
         Loaded += (_, _) =>
         {
             if (Application.Current is App app)
@@ -35,93 +53,30 @@ public partial class MainWindow : Window
         };
     }
 
-    // [WFP DISABLED]
-    // private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    // {
-    //     if (e.PropertyName == nameof(MainViewModel.IsEngineOpen))
-    //         UpdateEngineStatus();
-    // }
+    // ═════════════════════════════════════════════════════════════════
+    //  Navigation
+    // ═════════════════════════════════════════════════════════════════
 
-    // [WFP DISABLED]
-    // private void UpdateEngineStatus()
-    // {
-    //     EngineStatus.Text = "● Disconnected";
-    //     EngineStatus.Foreground = System.Windows.Media.Brushes.Red;
-    // }
-
-    // [WFP DISABLED]
-    // private async void BtnToggleEngine_Click(object sender, RoutedEventArgs e)
-    // {
-    //     if (_vm.IsBusy) return;
-    //     var wantOn = BtnToggleEngine.IsChecked == true;
-    //     if (wantOn && !_vm.IsEngineOpen)
-    //         await _vm.OpenEngineAsync();
-    //     else if (!wantOn && _vm.IsEngineOpen)
-    //         await _vm.CloseEngineAsync();
-    // }
-
-    //  Navigation 
-
+    /// <summary>
+    ///   Navigate to the specified page by name.
+    ///   Collapses all pages, then shows the target page and highlights its nav button.
+    /// </summary>
     private void ShowPage(string pageName)
     {
-        // Reset tag of all navigation buttons
-        NavDashboard.Tag = null;
-        NavRules.Tag = null;
-        NavConnections.Tag = null;
-        NavSettings.Tag = null;
-        NavProfiles.Tag = null;
-        NavBlocklists.Tag = null;
-        NavActivity.Tag = null;
-
-        PageDashboard.Visibility = Visibility.Collapsed;
-        PageRules.Visibility = Visibility.Collapsed;
-        PageConnections.Visibility = Visibility.Collapsed;
-        PageSettings.Visibility = Visibility.Collapsed;
-        PageProfiles.Visibility = Visibility.Collapsed;
-        PageBlocklists.Visibility = Visibility.Collapsed;
-        PageActivity.Visibility = Visibility.Collapsed;
-
-        switch (pageName)
+        // Reset all pages and nav buttons
+        foreach (var cfg in _pages.Values)
         {
-            case "Dashboard":
-                PageDashboard.Visibility = Visibility.Visible;
-                PageTitle.Text = "Dashboard";
-                NavDashboard.Tag = "Active";
-                break;
-            case "Rules":
-                PageRules.Visibility = Visibility.Visible;
-                PageTitle.Text = "Firewall Rules";
-                NavRules.Tag = "Active";
-                _vm.Rules.LoadRules();
-                break;
-            case "Connections":
-                PageConnections.Visibility = Visibility.Visible;
-                PageTitle.Text = "Live Connections";
-                NavConnections.Tag = "Active";
-                break;
-            case "Settings":
-                PageSettings.Visibility = Visibility.Visible;
-                PageTitle.Text = "Settings";
-                NavSettings.Tag = "Active";
-                break;
-            case "Profiles":
-                PageProfiles.Visibility = Visibility.Visible;
-                PageTitle.Text = "Application Profiles";
-                NavProfiles.Tag = "Active";
-                _vm.Profiles.Refresh();
-                break;
-            case "Blocklists":
-                PageBlocklists.Visibility = Visibility.Visible;
-                PageTitle.Text = "Blocklists";
-                NavBlocklists.Tag = "Active";
-                _vm.Blocklists.Refresh();
-                break;
-            case "Activity":
-                PageActivity.Visibility = Visibility.Visible;
-                PageTitle.Text = "Activity Log";
-                NavActivity.Tag = "Active";
-                _vm.Activity.RefreshStatus();
-                break;
+            cfg.Page.Visibility = Visibility.Collapsed;
+            cfg.NavButton.Tag = null;
+        }
+
+        // Activate the target page
+        if (_pages.TryGetValue(pageName, out var active))
+        {
+            active.Page.Visibility = Visibility.Visible;
+            PageTitle.Text = active.Title;
+            active.NavButton.Tag = "Active";
+            active.OnActivated?.Invoke();
         }
     }
 
@@ -133,7 +88,9 @@ public partial class MainWindow : Window
     private void NavBlocklists_Click(object sender, RoutedEventArgs e) => ShowPage("Blocklists");
     private void NavActivity_Click(object sender, RoutedEventArgs e) => ShowPage("Activity");
 
-    //  Window Controls ─
+    // ═════════════════════════════════════════════════════════════════
+    //  Window Controls
+    // ═════════════════════════════════════════════════════════════════
 
     private void OnTitleBarMouseDown(object sender, MouseButtonEventArgs e)
     {
@@ -189,18 +146,20 @@ public partial class MainWindow : Window
             return;
         }
 
-        // [WFP DISABLED]
-        // if (_vm.IsEngineOpen)
-        // {
-        //     e.Cancel = true;
-        //     Dispatcher.InvokeAsync(async () =>
-        //     {
-        //         await _vm.CloseEngineAsync();
-        //         Application.Current.Shutdown();
-        //     });
-        //     return;
-        // }
-
         base.OnClosing(e);
     }
+
+    // ═════════════════════════════════════════════════════════════════
+    //  Page Configuration Record
+    // ═════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    ///   Associates a page element with its navigation button, display title,
+    ///   and an optional callback invoked when the page is activated.
+    /// </summary>
+    private readonly record struct PageConfig(
+        FrameworkElement Page,
+        Button NavButton,
+        string Title,
+        Action? OnActivated = null);
 }

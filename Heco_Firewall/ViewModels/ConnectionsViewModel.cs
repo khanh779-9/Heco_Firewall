@@ -19,6 +19,11 @@ using Heco_Firewall.Windows;
 
 namespace Heco_Firewall.ViewModels;
 
+/// <summary>
+///   ViewModel for the Live Connections page.
+///   Monitors active TCP/UDP/ARP connections, enriches them with
+///   profile names, GeoIP data, and bandwidth stats.
+/// </summary>
 internal sealed class ConnectionsViewModel : ObservableObject
 {
     private readonly ConnectionMonitor _monitor;
@@ -180,6 +185,7 @@ internal sealed class ConnectionsViewModel : ObservableObject
 
     //  Monitoring 
 
+    /// <summary>Begin polling the OS for active network connections.</summary>
     public void StartMonitoring()
     {
         if (IsMonitoring) return;
@@ -187,6 +193,7 @@ internal sealed class ConnectionsViewModel : ObservableObject
         IsMonitoring = true;
     }
 
+    /// <summary>Stop the connection monitoring poll loop.</summary>
     public void StopMonitoring()
     {
         if (!IsMonitoring) return;
@@ -194,6 +201,7 @@ internal sealed class ConnectionsViewModel : ObservableObject
         IsMonitoring = false;
     }
 
+    /// <summary>Force an immediate refresh by restarting the monitor.</summary>
     public void ForceRefresh()
     {
         if (IsMonitoring)
@@ -334,6 +342,7 @@ internal sealed class ConnectionsViewModel : ObservableObject
         }
     }
 
+    /// <summary>CollectionView filter predicate — matches search text against connection fields.</summary>
     private bool FilterConnection(object obj)
     {
         if (string.IsNullOrWhiteSpace(_searchText))

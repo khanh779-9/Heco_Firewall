@@ -12,6 +12,10 @@ using Heco_Firewall.Windows;
 
 namespace Heco_Firewall.ViewModels;
 
+/// <summary>
+///   ViewModel for the Application Profiles page.
+///   Manages per-application network policies (allow/block outbound/inbound).
+/// </summary>
 internal sealed class ProfilesViewModel : ObservableObject
 {
     private readonly IProfileManager _profileManager;
@@ -75,6 +79,7 @@ internal sealed class ProfilesViewModel : ObservableObject
 
     //  Methods ─
 
+    /// <summary>Reload all profiles from disk and update stats.</summary>
     public void Refresh()
     {
         _profileManager.LoadProfiles();
@@ -85,6 +90,7 @@ internal sealed class ProfilesViewModel : ObservableObject
         OnPropertyChanged(nameof(TotalHits));
     }
 
+    /// <summary>Open the profile edit window for the currently selected profile.</summary>
     private void BeginEdit()
     {
         if (SelectedProfile == null) return;
@@ -101,6 +107,7 @@ internal sealed class ProfilesViewModel : ObservableObject
         }
     }
 
+    /// <summary>Auto-generate profiles from currently running processes.</summary>
     private void AutoGenerate()
     {
         try
@@ -152,6 +159,7 @@ internal sealed class ProfilesViewModel : ObservableObject
         }
     }
 
+    /// <summary>Delete the selected profile after user confirmation.</summary>
     private void DeleteProfile()
     {
         if (SelectedProfile == null || SelectedProfile.IsSpecial)

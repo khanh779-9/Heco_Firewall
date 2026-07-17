@@ -13,6 +13,7 @@ using Heco.WinDivert.Packet;
 using Heco.WinDivert.StreamReassembly;
 using static Heco.WinDivert.Enums.WinDivertLayer;
 using static Heco.WinDivert.Enums.WinDivertFlag;
+using System.Runtime.Versioning;
 
 namespace Heco.WinDivert.Filtering;
 
@@ -243,6 +244,7 @@ public sealed class WinDivertFilter : IDisposable
         Debug.WriteLine("[WinDivertFilter] Active interception loop stopped");
     }
 
+    [SupportedOSPlatform("windows")]
     private void RunFilterLoop(CancellationToken token)
     {
         while (!token.IsCancellationRequested)
@@ -264,7 +266,7 @@ public sealed class WinDivertFilter : IDisposable
 
                 for (int i = 0; i < batchSize; i++)
                 {
-                    uint aLen = (uint)addrLen;
+                    uint aLen = (uint)Marshal.SizeOf<WINDIVERT_ADDRESS>();
                     if (!WinDivertNative.WinDivertRecvEx(handle, packets[i], (uint)packets[i].Length, ref lengths[i], 0UL, ref addresses[i], ref aLen, IntPtr.Zero))
                         break;
                     if (lengths[i] == 0) break;
