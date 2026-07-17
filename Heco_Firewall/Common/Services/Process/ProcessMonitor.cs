@@ -372,7 +372,7 @@ public sealed class ProcessMonitor : IProcessMonitor
         try
         {
             int length = 0;
-            int result = GetPackageFamilyName(hProcess, ref length, null);
+            int result = GetPackageFamilyName(hProcess, ref length, null!);
             if (result != 122) // ERROR_INSUFFICIENT_BUFFER
                 return (false, null);
 

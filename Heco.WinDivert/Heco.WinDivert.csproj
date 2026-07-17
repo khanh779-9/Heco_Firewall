@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <RootNamespace>Heco.WinDivert</RootNamespace>
     <AssemblyName>Heco.WinDivert</AssemblyName>
     <LangVersion>12</LangVersion>
@@ -11,18 +11,9 @@
     <Platforms>AnyCPU;x64;x86</Platforms>
     <NoWarn>1591</NoWarn>
   </PropertyGroup>
+
   <ItemGroup>
-    <None Include="Drivers\x64\WinDivert.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Drivers\x64\WinDivert64.sys">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Drivers\x86\WinDivert.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Drivers\x86\WinDivert32.sys">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <None Include="Drivers\**\*" CopyToOutputDirectory="PreserveNewest" />  
   </ItemGroup>
+
 </Project>

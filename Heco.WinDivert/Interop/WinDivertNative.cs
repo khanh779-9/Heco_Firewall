@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -12,19 +13,18 @@ public static partial class WinDivertNative
 {
     private const string DllName = "WinDivert.dll";
 
+    [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Auto)]
+    private static extern IntPtr LoadLibrary(string lpFileName);
+
     static WinDivertNative()
     {
-        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+        var arch = Environment.Is64BitProcess ? "x64" : "x86";
+        var dllPath = Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory,
+            "Drivers", arch, "WinDivert.dll");
 
-        var dllPath = Path.Combine(baseDir, "WinDivert.dll");
-        if (!File.Exists(dllPath))
-        {
-            var arch = Environment.Is64BitProcess ? "x64" : "x86";
-            dllPath = Path.Combine(baseDir, "Drivers", arch, "WinDivert.dll");
-        }
-
-        if (File.Exists(dllPath))
-            NativeLibrary.Load(dllPath);
+        if (LoadLibrary(dllPath) == IntPtr.Zero)
+            throw new Win32Exception(Marshal.GetLastWin32Error(), $"Failed to load {dllPath}");
     }
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, SetLastError = true)]

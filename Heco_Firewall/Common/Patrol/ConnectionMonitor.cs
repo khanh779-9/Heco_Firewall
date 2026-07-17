@@ -10,15 +10,15 @@ using System.Threading.Tasks;
 using Heco.Common.Models;
 using Heco.Common.Enums;
 using Heco.Common.Interfaces;
-using Heco.Surveillance.Native;
+using Heco.Common.Native;
 using Heco.WinDivert.Enums;
 using Heco.WinDivert.Structs;
 using Heco.WinDivert.Interop;
 using Heco.WinDivert.Packet;
-using static Heco.Surveillance.Native.IpHlpApi;
+using static Heco.Common.Native.IpHlpApi;
 
 
-namespace Heco.Surveillance.Patrol;
+namespace Heco.Common.Patrol;
 
 /// <summary>
 ///   Polls the system connection table via IP Helper API and emits

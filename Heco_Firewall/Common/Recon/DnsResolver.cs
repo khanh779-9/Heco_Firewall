@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 
-namespace Heco.Surveillance.Recon;
+namespace Heco.Common.Recon;
 
 /// <summary>
 ///   Performs reverse DNS lookups with in-memory caching.

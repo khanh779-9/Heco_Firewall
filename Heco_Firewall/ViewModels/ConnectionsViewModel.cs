@@ -13,7 +13,7 @@ using Heco.Common.Models;
 using Heco.Common.Enums;
 using Heco.Common.Interfaces;
 using Heco.Common.Services.Profiles;
-using Heco.Surveillance.Patrol;
+using Heco.Common.Patrol;
 using Heco_Firewall.Helpers;
 using Heco_Firewall.Windows;
 

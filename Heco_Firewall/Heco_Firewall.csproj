@@ -17,6 +17,10 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
+    <PackageReference Include="YamlDotNet" Version="16.2.1" />
+    <PackageReference Include="MaxMind.Db" Version="4.0.0" />
+    <PackageReference Include="System.Management" Version="9.0.0" />
+    <PackageReference Include="System.Diagnostics.EventLog" Version="9.0.0" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Copilot_20260714_223228.ico" />
@@ -44,13 +48,7 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Heco.Common\Heco.Common.csproj" />
-    <ProjectReference Include="..\Heco.Surveillance\Heco.Surveillance.csproj" />
     <ProjectReference Include="..\Heco.WinDivert\Heco.WinDivert.csproj" />
   </ItemGroup>
 
-  <Target Name="_CopyWinDivertArch" AfterTargets="Build">
-    <Copy SourceFiles="..\Heco.WinDivert\Drivers\x64\WinDivert.dll" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="..\Heco.WinDivert\Drivers\x64\WinDivert64.sys" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
-  </Target>
 </Project>

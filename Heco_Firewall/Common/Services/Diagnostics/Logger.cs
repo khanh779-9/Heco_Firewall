@@ -3,17 +3,12 @@ using System.IO;
 
 namespace Heco.Common.Services.Diagnostics;
 
-/// <summary>
-///   Simple file-based logger for Heco Services.
-///   Writes to %APPDATA%\Heco\logs\hecoview.log with rotation.
-/// </summary>
 public static class Logger
 {
     private static readonly object _sync = new();
     private static string? _logPath;
-    private static long _maxSize = 5 * 1024 * 1024; // 5 MB
+    private static long _maxSize = 5 * 1024 * 1024;
 
-    /// <summary>Initialize the logger. Called once at startup.</summary>
     public static void Initialize(string? customPath = null)
     {
         if (customPath is not null)
@@ -29,25 +24,21 @@ public static class Logger
         }
     }
 
-    /// <summary>Write an info-level message.</summary>
     public static void Info(string message)
     {
         Write("INFO", message);
     }
 
-    /// <summary>Write a warning-level message.</summary>
     public static void Warn(string message)
     {
         Write("WARN", message);
     }
 
-    /// <summary>Write an error-level message.</summary>
     public static void Error(string message, Exception? ex = null)
     {
         Write("ERROR", ex is null ? message : $"{message} | {ex.GetType().Name}: {ex.Message}");
     }
 
-    /// <summary>Write a debug-level message.</summary>
     public static void Debug(string message)
     {
 #if DEBUG
@@ -68,7 +59,6 @@ public static class Logger
             }
             catch
             {
-                // Swallow logger errors — never crash the app
             }
         }
     }

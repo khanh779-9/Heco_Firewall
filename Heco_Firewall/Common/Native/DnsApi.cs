@@ -2,7 +2,7 @@ using System;
 using System.Net;
 using System.Runtime.InteropServices;
 
-namespace Heco.Surveillance.Native;
+namespace Heco.Common.Native;
 
 /// <summary>
 ///   P/Invoke declarations for DNS API (dnsapi.dll).

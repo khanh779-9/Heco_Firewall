@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Management;
 using System.Runtime.Versioning;
 
-namespace Heco.Surveillance.Recon;
+namespace Heco.Common.Recon;
 
 /// <summary>
 ///   Resolves detailed process information from a PID,

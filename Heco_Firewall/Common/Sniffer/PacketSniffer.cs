@@ -5,7 +5,7 @@ using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Heco.Surveillance.Sniffer;
+namespace Heco.Common.Sniffer;
 
 /// <summary>
 ///   Captures raw IP packets using a promiscuous-mode raw socket.
